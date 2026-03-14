@@ -18,6 +18,9 @@ services:
 
         USER openhands
 
+        RUN git config --global --add safe.directory /workspace/project \
+            && git config --global --add safe.directory '/workspace/project/*'
+
         RUN HOME=/home/openhands distill config host "$$DISTILL_HOST" \
             && HOME=/home/openhands distill config model "$$DISTILL_MODEL" \
             && HOME=/home/openhands distill config thinking false \
@@ -66,6 +69,7 @@ services:
         "0.0.0.0",
         "--port",
         "5000",
+        "--verbose",
         "--debug-model",
         "${CHATMOCK_MODEL:-gpt-5.1-codex-max}",
         "--reasoning-effort",
@@ -199,6 +203,8 @@ services:
       AGENT_SERVER_IMAGE_REPOSITORY: ${STACK_NAME}-runtime
       AGENT_SERVER_IMAGE_TAG: latest
       OH_SECRET_KEY: ${OH_SECRET_KEY:-openhands-universal-stack-dev-secret}
+      OH_AGENT_SERVER_ENV: >-
+        {"OH_ALLOW_CORS_ORIGINS_1":"http://localhost:${OPENHANDS_PORT}","OH_ALLOW_CORS_ORIGINS_2":"http://127.0.0.1:${OPENHANDS_PORT}"}
       OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
       OH_WEB_URL: http://host.docker.internal:${OPENHANDS_PORT}
       SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
