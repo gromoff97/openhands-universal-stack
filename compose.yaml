@@ -1,3 +1,5 @@
+name: ${STACK_NAME}
+
 services:
   runtime-image:
     build:
@@ -13,9 +15,16 @@ services:
 
         RUN npm install -g @samuelfaj/distill@1.4.0
 
-        RUN mkdir -p /home/openhands/.config/distill \
-            && printf '{\n  "host": "%s",\n  "model": "%s",\n  "thinking": false,\n  "timeoutMs": %s\n}\n' "${DISTILL_HOST}" "${DISTILL_MODEL}" "${DISTILL_TIMEOUT_MS}" > /home/openhands/.config/distill/config.json \
-            && chown -R openhands:openhands /home/openhands/.config
+        RUN mkdir -p /home/openhands/.config/distill; \
+            cat > /home/openhands/.config/distill/config.json <<EOF
+        {
+          "host": "${DISTILL_HOST}",
+          "model": "${DISTILL_MODEL}",
+          "thinking": false,
+          "timeoutMs": ${DISTILL_TIMEOUT_MS}
+        }
+        EOF
+        RUN chown -R openhands:openhands /home/openhands/.config
 
         USER openhands
       args:
@@ -51,8 +60,6 @@ services:
         ENTRYPOINT ["chatmock"]
         CMD ["serve", "--host", "0.0.0.0", "--port", "5000", "--debug-model", "gpt-5.1-codex-max", "--reasoning-effort", "low", "--reasoning-summary", "none"]
     image: ${STACK_NAME}-chatmock:latest
-    environment:
-      CHATGPT_LOCAL_HOME: /config
     volumes:
       - chatmock-state:/config
     restart: unless-stopped
@@ -61,8 +68,6 @@ services:
     image: ${STACK_NAME}-chatmock:latest
     profiles:
       - login
-    environment:
-      CHATGPT_LOCAL_HOME: /config
     volumes:
       - chatmock-state:/config
     ports:
@@ -152,10 +157,6 @@ services:
 
 volumes:
   openhands-state:
-    name: ${STACK_NAME}-openhands-state
   chatmock-state:
-    name: ${STACK_NAME}-chatmock-state
   ollama-data:
-    name: ${STACK_NAME}-ollama-data
   memory-data:
-    name: ${STACK_NAME}-memory-data
