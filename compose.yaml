@@ -45,8 +45,12 @@ services:
             && rm -rf /var/lib/apt/lists/*
 
         RUN git clone https://github.com/RayBytes/ChatMock.git . \
-            && git checkout "$$CHATMOCK_COMMIT" \
-            && pip install --no-cache-dir .
+            && git checkout "$$CHATMOCK_COMMIT"
+
+        COPY scripts/patch_chatmock_responses.py /tmp/patch_chatmock_responses.py
+        RUN python /tmp/patch_chatmock_responses.py
+
+        RUN pip install --no-cache-dir .
 
         ENV CHATGPT_LOCAL_HOME=/config
         ENV PYTHONUNBUFFERED=1
@@ -69,6 +73,8 @@ services:
         "--reasoning-summary",
         "${CHATMOCK_REASONING_SUMMARY:-none}",
       ]
+    ports:
+      - "5000:5000"
     volumes:
       - chatmock-state:/config
     healthcheck:
@@ -194,6 +200,7 @@ services:
       AGENT_SERVER_IMAGE_TAG: latest
       OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
       OH_WEB_URL: http://host.docker.internal:${OPENHANDS_PORT}
+      SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
       SANDBOX_VOLUMES: "${PROJECT_ROOT}:/workspace:rw"
     extra_hosts:
       - "host.docker.internal:host-gateway"

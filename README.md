@@ -106,6 +106,10 @@ Save the LLM settings once:
 - API key: `chatmock`
 - model: use `CHATMOCK_MODEL`
 
+This stack applies a small build-time patch to `ChatMock` so it can answer
+`/v1/responses`, which current `OpenHands` expects from an OpenAI-compatible
+backend.
+
 Then add these MCP servers once:
 
 - `Context7`
