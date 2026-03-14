@@ -50,6 +50,9 @@ Main variables:
 - `CONTEXT7_API_KEY`
 - `OPENHANDS_PORT`
 - `OLLAMA_HOST_PORT`
+- `CHATMOCK_MODEL`
+- `CHATMOCK_REASONING_EFFORT`
+- `CHATMOCK_REASONING_SUMMARY`
 - `DISTILL_OLLAMA_MODEL`
 - `DISTILL_TIMEOUT_MS`
 
@@ -61,6 +64,9 @@ PROJECT_ROOT=$HOME/work/my-project
 CONTEXT7_API_KEY=
 OPENHANDS_PORT=3001
 OLLAMA_HOST_PORT=11435
+CHATMOCK_MODEL=gpt-5.1-codex-max
+CHATMOCK_REASONING_EFFORT=low
+CHATMOCK_REASONING_SUMMARY=none
 DISTILL_OLLAMA_MODEL=qwen3.5:2b
 DISTILL_TIMEOUT_MS=90000
 ```
@@ -89,7 +95,9 @@ and save your preferred settings in the GUI.
 
 Recommended values for this stack:
 
-- model: `gpt-5.1-codex-max`
+- model: `${CHATMOCK_MODEL}` (default `gpt-5.1-codex-max`)
+- reasoning effort: `${CHATMOCK_REASONING_EFFORT}` (default `low`)
+- reasoning summary: `${CHATMOCK_REASONING_SUMMARY}` (default `none`)
 - base URL: `http://chatmock:5000/v1`
 - API key: `chatmock`
 

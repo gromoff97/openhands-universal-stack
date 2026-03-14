@@ -52,8 +52,21 @@ services:
         VOLUME ["/config"]
 
         ENTRYPOINT ["chatmock"]
-        CMD ["serve", "--host", "0.0.0.0", "--port", "5000", "--debug-model", "gpt-5.1-codex-max", "--reasoning-effort", "low", "--reasoning-summary", "none"]
     image: ${STACK_NAME}-chatmock:latest
+    command:
+      [
+        "serve",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+        "--debug-model",
+        "${CHATMOCK_MODEL:-gpt-5.1-codex-max}",
+        "--reasoning-effort",
+        "${CHATMOCK_REASONING_EFFORT:-low}",
+        "--reasoning-summary",
+        "${CHATMOCK_REASONING_SUMMARY:-none}",
+      ]
     volumes:
       - chatmock-state:/config
     restart: unless-stopped
