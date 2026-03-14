@@ -104,29 +104,25 @@ services:
     image: node:22-slim
     environment:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
-    command: ["npx", "-y", "@upstash/context7-mcp@2.1.4", "--transport", "http", "--port", "3000"]
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      exec npx -y @upstash/context7-mcp@2.1.4
+        --transport http
+        --port 3000
     restart: unless-stopped
 
   memory-mcp:
     image: node:22-slim
     environment:
       MEMORY_FILE_PATH: /data/memory.jsonl
-    command:
-      [
-        "npx",
-        "-y",
-        "supergateway@3.4.3",
-        "--stdio",
-        "npx -y @modelcontextprotocol/server-memory@2026.1.26",
-        "--outputTransport",
-        "streamableHttp",
-        "--port",
-        "8000",
-        "--streamableHttpPath",
-        "/mcp",
-        "--healthEndpoint",
-        "/healthz",
-      ]
+    entrypoint: ["/bin/sh", "-lc"]
+    command: >
+      exec npx -y supergateway@3.4.3
+        --stdio "npx -y @modelcontextprotocol/server-memory@2026.1.26"
+        --outputTransport streamableHttp
+        --port 8000
+        --streamableHttpPath /mcp
+        --healthEndpoint /healthz
     volumes:
       - memory-data:/data
     restart: unless-stopped
