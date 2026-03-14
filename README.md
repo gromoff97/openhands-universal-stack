@@ -10,7 +10,7 @@ Included services:
 - `Context7`
 - `Memory MCP`
 
-This repository contains only the infrastructure for that stack. It does not define any project-local workflow or repository conventions.
+This repository contains only the infrastructure for that stack.
 
 ## Requirements
 
@@ -31,10 +31,8 @@ instead of `/mnt/c/...` if you want stable git and `Changes` behavior.
 
 - `compose.yaml`
 - `.env.example`
-- `chatmock/Dockerfile`
-- `runtime/Dockerfile`
 
-`chatmock` and `runtime` still use custom images because they need pinned application/runtime setup. The other services run directly from stock images in `compose.yaml`.
+All infrastructure is defined in `compose.yaml`. No separate Dockerfiles are required in the repository.
 
 ## Configuration
 
