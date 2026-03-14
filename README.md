@@ -53,6 +53,7 @@ Required variables:
 
 - `STACK_NAME`
 - `PROJECT_ROOT`
+- `OH_SECRET_KEY`
 - `OPENHANDS_PORT`
 - `OLLAMA_HOST_PORT`
 - `CHATMOCK_MODEL`
@@ -70,6 +71,7 @@ Minimal example:
 ```env
 STACK_NAME=openhands-support
 PROJECT_ROOT=$HOME/work/my-project
+OH_SECRET_KEY=openhands-universal-stack-dev-secret
 OPENHANDS_PORT=3001
 OLLAMA_HOST_PORT=11435
 CHATMOCK_MODEL=gpt-5.1-codex-max

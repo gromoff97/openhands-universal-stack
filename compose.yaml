@@ -198,15 +198,17 @@ services:
     environment:
       AGENT_SERVER_IMAGE_REPOSITORY: ${STACK_NAME}-runtime
       AGENT_SERVER_IMAGE_TAG: latest
+      OH_SECRET_KEY: ${OH_SECRET_KEY:-openhands-universal-stack-dev-secret}
       OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
       OH_WEB_URL: http://host.docker.internal:${OPENHANDS_PORT}
       SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
-      SANDBOX_VOLUMES: "${PROJECT_ROOT}:/workspace:rw"
+      SANDBOX_VOLUMES: "${PROJECT_ROOT}:/workspace/project:rw"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HOME}/.openhands:/.openhands
+      - ./config/openhands/config.toml:/app/config.toml:ro
     restart: unless-stopped
 
 volumes:

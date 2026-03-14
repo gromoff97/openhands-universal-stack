@@ -17,6 +17,15 @@ SHIM = textwrap.dedent(
         reasoning_effort = current_app.config.get("REASONING_EFFORT", "medium")
         reasoning_summary = current_app.config.get("REASONING_SUMMARY", "auto")
 
+        def _extract_text_parts(item: Dict[str, Any]) -> List[str]:
+            parts: List[str] = []
+            for content in item.get("content") or []:
+                if not isinstance(content, dict):
+                    continue
+                if content.get("type") in ("input_text", "text") and isinstance(content.get("text"), str):
+                    parts.append(content.get("text") or "")
+            return [part for part in parts if part]
+
         raw = request.get_data(cache=True, as_text=True) or ""
         if verbose:
             try:
@@ -86,8 +95,25 @@ SHIM = textwrap.dedent(
         )
 
         instructions = payload.get("instructions")
-        if not (isinstance(instructions, str) and instructions.strip()):
-            instructions = _instructions_for_model(model)
+        if isinstance(instructions, str) and instructions.strip():
+            instructions = instructions.strip()
+        else:
+            system_texts: List[str] = []
+            filtered_input_items: List[Dict[str, Any]] = []
+            for item in input_items:
+                if (
+                    isinstance(item, dict)
+                    and item.get("type") == "message"
+                    and item.get("role") == "system"
+                ):
+                    system_texts.extend(_extract_text_parts(item))
+                    continue
+                filtered_input_items.append(item)
+            if system_texts:
+                instructions = "\\n\\n".join(system_texts)
+                input_items = filtered_input_items
+            else:
+                instructions = _instructions_for_model(model)
 
         upstream, error_resp = start_upstream_request(
             model,
