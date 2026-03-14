@@ -1,0 +1,169 @@
+services:
+  runtime-image:
+    build:
+      context: ./runtime
+      args:
+        DISTILL_HOST: "http://host.docker.internal:${OLLAMA_HOST_PORT}"
+        DISTILL_MODEL: "${DISTILL_OLLAMA_MODEL}"
+        DISTILL_TIMEOUT_MS: "${DISTILL_TIMEOUT_MS}"
+    image: ${STACK_NAME}-runtime:latest
+    entrypoint:
+      - /bin/sh
+      - -lc
+    command:
+      - "true"
+    restart: "no"
+
+  openhands-init:
+    image: python:3.13-slim
+    depends_on:
+      runtime-image:
+        condition: service_completed_successfully
+    environment:
+      STACK_NAME: ${STACK_NAME}
+      CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
+    volumes:
+      - ${OPENHANDS_HOME}:/state
+      - ./init/ensure_openhands_state.py:/app/ensure_openhands_state.py:ro
+    command:
+      - python
+      - /app/ensure_openhands_state.py
+    restart: "no"
+
+  chatmock:
+    build:
+      context: ./chatmock
+    image: ${STACK_NAME}-chatmock:latest
+    container_name: ${STACK_NAME}-chatmock
+    environment:
+      CHATGPT_LOCAL_HOME: /config
+    volumes:
+      - ${CHATMOCK_HOME}:/config
+    command:
+      - serve
+      - --host
+      - 0.0.0.0
+      - --port
+      - "5000"
+      - --debug-model
+      - gpt-5.1-codex-max
+      - --reasoning-effort
+      - low
+      - --reasoning-summary
+      - none
+    restart: unless-stopped
+
+  chatmock-login:
+    image: ${STACK_NAME}-chatmock:latest
+    profiles:
+      - login
+    environment:
+      CHATGPT_LOCAL_HOME: /config
+    volumes:
+      - ${CHATMOCK_HOME}:/config
+    ports:
+      - "1455:1455"
+    command:
+      - login
+    stdin_open: true
+    tty: true
+    restart: "no"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ${STACK_NAME}-ollama
+    ports:
+      - "${OLLAMA_HOST_PORT}:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test:
+        - CMD
+        - ollama
+        - list
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  ollama-setup:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      DISTILL_OLLAMA_MODEL: ${DISTILL_OLLAMA_MODEL}
+    entrypoint:
+      - /bin/sh
+      - -lc
+    command:
+      - ollama pull "${DISTILL_OLLAMA_MODEL}"
+    restart: "no"
+
+  context7-mcp:
+    build:
+      context: ./context7
+    image: ${STACK_NAME}-context7-mcp:latest
+    container_name: ${STACK_NAME}-context7-mcp
+    environment:
+      CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
+    command:
+      - --transport
+      - http
+      - --port
+      - "3000"
+    restart: unless-stopped
+
+  memory-mcp:
+    build:
+      context: ./memory
+    image: ${STACK_NAME}-memory-mcp:latest
+    container_name: ${STACK_NAME}-memory-mcp
+    environment:
+      MEMORY_FILE_PATH: /data/memory.jsonl
+    command:
+      - supergateway
+      - --stdio
+      - mcp-server-memory
+      - --outputTransport
+      - streamableHttp
+      - --port
+      - "8000"
+      - --streamableHttpPath
+      - /mcp
+      - --healthEndpoint
+      - /healthz
+    volumes:
+      - memory-data:/data
+    restart: unless-stopped
+
+  openhands:
+    image: docker.openhands.dev/openhands/openhands:latest
+    container_name: ${STACK_NAME}-openhands
+    depends_on:
+      openhands-init:
+        condition: service_completed_successfully
+      ollama-setup:
+        condition: service_completed_successfully
+      chatmock:
+        condition: service_started
+      context7-mcp:
+        condition: service_started
+      memory-mcp:
+        condition: service_started
+    ports:
+      - "${OPENHANDS_PORT}:3000"
+    environment:
+      SANDBOX_VOLUMES: "${PROJECT_ROOT}:/workspace/project:rw"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${OPENHANDS_HOME}:/root/.openhands
+    restart: unless-stopped
+
+volumes:
+  ollama-data:
+  memory-data:
