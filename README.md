@@ -1,24 +1,37 @@
 # OpenHands Universal Stack
 
-Reusable Docker Compose stack for `OpenHands`.
+Reusable Docker Compose stack for `OpenHands` with:
 
-Included services:
-
-- `OpenHands`
 - `ChatMock`
 - `Ollama`
 - `Context7 MCP`
 - `Memory MCP`
-- `distill` in the sandbox runtime
+- a custom OpenHands sandbox image that includes `distill`
 
-This repository contains only the infrastructure for that stack.
+This repository contains infrastructure only.
+
+## Compose Layout
+
+The stack is organized by responsibility:
+
+- long-lived services
+  - `openhands`
+  - `chatmock`
+  - `ollama`
+  - `context7-mcp`
+  - `memory-mcp`
+- one-shot jobs
+  - `chatmock-login`
+  - `ollama-pull`
+- build job
+  - `runtime-build`
 
 ## Requirements
 
 - Linux or WSL2
 - Docker with `docker compose`
 - Docker `buildx`
-- a target project available on the Linux filesystem
+- a target project on the Linux filesystem
 
 For WSL, prefer a Linux path such as:
 
@@ -28,14 +41,7 @@ $HOME/work/my-project
 
 instead of `/mnt/c/...` if you want stable git and `Changes` behavior.
 
-## Files
-
-- `compose.yaml`
-- `.env.example`
-
-All infrastructure is defined in `compose.yaml`. No separate Dockerfiles are required in the repository.
-
-## Configuration
+## Configure
 
 Copy `.env.example` to `.env`:
 
@@ -43,11 +49,10 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Main variables:
+Required variables:
 
 - `STACK_NAME`
 - `PROJECT_ROOT`
-- `CONTEXT7_API_KEY`
 - `OPENHANDS_PORT`
 - `OLLAMA_HOST_PORT`
 - `CHATMOCK_MODEL`
@@ -56,12 +61,15 @@ Main variables:
 - `DISTILL_OLLAMA_MODEL`
 - `DISTILL_TIMEOUT_MS`
 
+Optional:
+
+- `CONTEXT7_API_KEY`
+
 Minimal example:
 
 ```env
 STACK_NAME=openhands-support
 PROJECT_ROOT=$HOME/work/my-project
-CONTEXT7_API_KEY=
 OPENHANDS_PORT=3001
 OLLAMA_HOST_PORT=11435
 CHATMOCK_MODEL=gpt-5.1-codex-max
@@ -69,6 +77,7 @@ CHATMOCK_REASONING_EFFORT=low
 CHATMOCK_REASONING_SUMMARY=none
 DISTILL_OLLAMA_MODEL=qwen3.5:2b
 DISTILL_TIMEOUT_MS=90000
+CONTEXT7_API_KEY=
 ```
 
 ## First Run
@@ -79,29 +88,25 @@ Start the stack:
 docker compose up -d --build
 ```
 
-Log into ChatMock once:
+Log into `ChatMock` once:
 
 ```bash
 docker compose --profile login run --rm --service-ports chatmock-login
 ```
 
-Then open `OpenHands`:
+Open `OpenHands`:
 
 ```text
 http://localhost:<OPENHANDS_PORT>
 ```
 
-and save your preferred settings in the GUI.
+Save the LLM settings once:
 
-Recommended values for this stack:
-
-- model: `${CHATMOCK_MODEL}` (default `gpt-5.1-codex-max`)
-- reasoning effort: `${CHATMOCK_REASONING_EFFORT}` (default `low`)
-- reasoning summary: `${CHATMOCK_REASONING_SUMMARY}` (default `none`)
 - base URL: `http://chatmock:5000/v1`
 - API key: `chatmock`
+- model: use `CHATMOCK_MODEL`
 
-If you want MCP enabled, add these servers once in the GUI:
+Then add these MCP servers once:
 
 - `Context7`
   - transport: `SHTTP`
@@ -110,14 +115,7 @@ If you want MCP enabled, add these servers once in the GUI:
   - transport: `SHTTP`
   - URL: `http://memory-mcp:8000/mcp`
 
-Then restart once:
-
-```bash
-docker compose down
-docker compose up -d --build
-```
-
-After that, normal usage is just:
+After that, normal usage is:
 
 ```bash
 docker compose up -d --build
@@ -126,28 +124,42 @@ docker compose down
 
 ## Persistence
 
-The stack keeps its state in Docker named volumes:
+The stack keeps state in:
 
-- `${STACK_NAME}-chatmock-state`
-- `${STACK_NAME}-ollama-data`
-- `${STACK_NAME}-memory-data`
+- Docker named volumes
+  - `${STACK_NAME}-chatmock-state`
+  - `${STACK_NAME}-ollama-data`
+  - `${STACK_NAME}-memory-data`
+- standard OpenHands host state
+  - `${HOME}/.openhands`
 
 That means:
 
 - `ChatMock` login survives normal restarts
 - `Ollama` model data survives normal restarts
 - `Memory MCP` data survives normal restarts
+- `OpenHands` settings, MCP config, and conversation state survive normal restarts
 
-`OpenHands` itself keeps state in the standard host directory:
+## Reset State
 
-- `${HOME}/.openhands`
+`docker compose down` stops containers and keeps all state.
 
-You only lose that state if you explicitly remove the volumes.
+`docker compose down -v` removes Docker named volumes for:
 
-## Notes
+- `ChatMock`
+- `Ollama`
+- `Memory MCP`
 
-- the project is mounted into the runtime at `/workspace`
-- `distill` inside the runtime talks to `Ollama` through `host.docker.internal`
-- `ChatMock` auth is stored in `${STACK_NAME}-chatmock-state`
-- `OpenHands` uses `${STACK_NAME}-runtime:latest` as its agent-server image
-- `Context7 MCP` is available on the local compose network at `http://context7-mcp:3000/mcp`
+It does not remove `OpenHands` host state in `${HOME}/.openhands`.
+
+If you also want a fresh `OpenHands` state, remove that directory yourself:
+
+```bash
+rm -rf "${HOME}/.openhands"
+```
+
+## Runtime Notes
+
+- the target project is mounted into the sandbox at `/workspace`
+- `OpenHands` uses `${STACK_NAME}-runtime:latest` as its sandbox image
+- `distill` inside the sandbox talks to `Ollama` through `host.docker.internal`
