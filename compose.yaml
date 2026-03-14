@@ -192,6 +192,7 @@ services:
     environment:
       AGENT_SERVER_IMAGE_REPOSITORY: ${STACK_NAME}-runtime
       AGENT_SERVER_IMAGE_TAG: latest
+      OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
       SANDBOX_VOLUMES: "${PROJECT_ROOT}:/workspace:rw"
     extra_hosts:
       - "host.docker.internal:host-gateway"
