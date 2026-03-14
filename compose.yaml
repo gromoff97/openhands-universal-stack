@@ -1,72 +1,60 @@
-x-sh-lc: &sh-lc ["/bin/sh", "-lc"]
-x-chatmock-serve: &chatmock-serve ["serve", "--host", "0.0.0.0", "--port", "5000", "--debug-model", "gpt-5.1-codex-max", "--reasoning-effort", "low", "--reasoning-summary", "none"]
-
-x-chatmock-build: &chatmock-build
-  context: .
-  dockerfile_inline: |
-    FROM python:3.13-slim
-
-    ARG CHATMOCK_COMMIT=baf312a02e54dd62ab74be485759da5ee9ccf226
-
-    WORKDIR /src
-
-    RUN apt-get update \
-        && apt-get install -y --no-install-recommends git ca-certificates \
-        && rm -rf /var/lib/apt/lists/*
-
-    RUN git clone https://github.com/RayBytes/ChatMock.git . \
-        && git checkout "${CHATMOCK_COMMIT}" \
-        && pip install --no-cache-dir .
-
-    ENV CHATGPT_LOCAL_HOME=/config
-    ENV PYTHONUNBUFFERED=1
-
-    VOLUME ["/config"]
-
-    ENTRYPOINT ["chatmock"]
-    CMD ["serve", "--host", "0.0.0.0", "--port", "5000", "--debug-model", "gpt-5.1-codex-max", "--reasoning-effort", "low", "--reasoning-summary", "none"]
-
-x-runtime-build: &runtime-build
-  context: .
-  dockerfile_inline: |
-    FROM ghcr.io/openhands/agent-server:1.12.0-python
-
-    ARG DISTILL_MODEL=qwen3.5:2b
-    ARG DISTILL_TIMEOUT_MS=90000
-    ARG DISTILL_HOST=http://host.docker.internal:11435
-
-    USER root
-
-    RUN npm install -g @samuelfaj/distill@1.4.0
-
-    RUN mkdir -p /home/openhands/.config/distill \
-        && printf '{\n  "host": "%s",\n  "model": "%s",\n  "thinking": false,\n  "timeoutMs": %s\n}\n' "${DISTILL_HOST}" "${DISTILL_MODEL}" "${DISTILL_TIMEOUT_MS}" > /home/openhands/.config/distill/config.json \
-        && chown -R openhands:openhands /home/openhands/.config
-
-    USER openhands
-
 services:
   runtime-image:
     build:
-      <<: *runtime-build
+      context: .
+      dockerfile_inline: |
+        FROM ghcr.io/openhands/agent-server:1.12.0-python
+
+        ARG DISTILL_MODEL=qwen3.5:2b
+        ARG DISTILL_TIMEOUT_MS=90000
+        ARG DISTILL_HOST=http://host.docker.internal:11435
+
+        USER root
+
+        RUN npm install -g @samuelfaj/distill@1.4.0
+
+        RUN mkdir -p /home/openhands/.config/distill \
+            && printf '{\n  "host": "%s",\n  "model": "%s",\n  "thinking": false,\n  "timeoutMs": %s\n}\n' "${DISTILL_HOST}" "${DISTILL_MODEL}" "${DISTILL_TIMEOUT_MS}" > /home/openhands/.config/distill/config.json \
+            && chown -R openhands:openhands /home/openhands/.config
+
+        USER openhands
       args:
         DISTILL_HOST: "http://host.docker.internal:${OLLAMA_HOST_PORT}"
         DISTILL_MODEL: "${DISTILL_OLLAMA_MODEL}"
         DISTILL_TIMEOUT_MS: "${DISTILL_TIMEOUT_MS}"
     image: ${STACK_NAME}-runtime:latest
-    entrypoint: *sh-lc
-    command: "true"
-    restart: "no"
+    entrypoint: ["true"]
 
   chatmock:
-    build: *chatmock-build
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.13-slim
+
+        ARG CHATMOCK_COMMIT=baf312a02e54dd62ab74be485759da5ee9ccf226
+
+        WORKDIR /src
+
+        RUN apt-get update \
+            && apt-get install -y --no-install-recommends git ca-certificates \
+            && rm -rf /var/lib/apt/lists/*
+
+        RUN git clone https://github.com/RayBytes/ChatMock.git . \
+            && git checkout "${CHATMOCK_COMMIT}" \
+            && pip install --no-cache-dir .
+
+        ENV CHATGPT_LOCAL_HOME=/config
+        ENV PYTHONUNBUFFERED=1
+
+        VOLUME ["/config"]
+
+        ENTRYPOINT ["chatmock"]
+        CMD ["serve", "--host", "0.0.0.0", "--port", "5000", "--debug-model", "gpt-5.1-codex-max", "--reasoning-effort", "low", "--reasoning-summary", "none"]
     image: ${STACK_NAME}-chatmock:latest
-    container_name: ${STACK_NAME}-chatmock
     environment:
       CHATGPT_LOCAL_HOME: /config
     volumes:
       - chatmock-state:/config
-    command: *chatmock-serve
     restart: unless-stopped
 
   chatmock-login:
@@ -79,24 +67,18 @@ services:
       - chatmock-state:/config
     ports:
       - "1455:1455"
-    command:
-      - login
+    command: ["login"]
     stdin_open: true
     tty: true
-    restart: "no"
 
   ollama:
     image: ollama/ollama:latest
-    container_name: ${STACK_NAME}-ollama
     ports:
       - "${OLLAMA_HOST_PORT}:11434"
     volumes:
       - ollama-data:/root/.ollama
     healthcheck:
-      test:
-        - CMD
-        - ollama
-        - list
+      test: ["CMD", "ollama", "list"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -110,43 +92,42 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
-      DISTILL_OLLAMA_MODEL: ${DISTILL_OLLAMA_MODEL}
-    entrypoint: *sh-lc
-    command: 'ollama pull "${DISTILL_OLLAMA_MODEL}"'
-    restart: "no"
+    entrypoint: ["/bin/ollama"]
+    command: ["pull", "${DISTILL_OLLAMA_MODEL}"]
 
   context7-mcp:
     image: node:22-slim
-    container_name: ${STACK_NAME}-context7-mcp
     environment:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
-    entrypoint: *sh-lc
-    command: >
-      exec npx -y @upstash/context7-mcp@2.1.4
-      --transport http
-      --port 3000
+    command: ["npx", "-y", "@upstash/context7-mcp@2.1.4", "--transport", "http", "--port", "3000"]
     restart: unless-stopped
 
   memory-mcp:
     image: node:22-slim
-    container_name: ${STACK_NAME}-memory-mcp
     environment:
       MEMORY_FILE_PATH: /data/memory.jsonl
-    entrypoint: *sh-lc
-    command: >
-      exec npx -y supergateway@3.4.3
-      --stdio "npx -y @modelcontextprotocol/server-memory@2026.1.26"
-      --outputTransport streamableHttp
-      --port 8000
-      --streamableHttpPath /mcp
-      --healthEndpoint /healthz
+    command:
+      [
+        "npx",
+        "-y",
+        "supergateway@3.4.3",
+        "--stdio",
+        "npx -y @modelcontextprotocol/server-memory@2026.1.26",
+        "--outputTransport",
+        "streamableHttp",
+        "--port",
+        "8000",
+        "--streamableHttpPath",
+        "/mcp",
+        "--healthEndpoint",
+        "/healthz",
+      ]
     volumes:
       - memory-data:/data
     restart: unless-stopped
 
   openhands:
     image: docker.openhands.dev/openhands/openhands:latest
-    container_name: ${STACK_NAME}-openhands
     depends_on:
       ollama-setup:
         condition: service_completed_successfully
