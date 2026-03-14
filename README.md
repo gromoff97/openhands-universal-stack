@@ -7,6 +7,7 @@ Included services:
 - `OpenHands`
 - `ChatMock`
 - `Ollama`
+- `Context7 MCP`
 - `Memory MCP`
 - `distill` in the sandbox runtime
 
@@ -46,6 +47,7 @@ Main variables:
 
 - `STACK_NAME`
 - `PROJECT_ROOT`
+- `CONTEXT7_API_KEY`
 - `OPENHANDS_PORT`
 - `OLLAMA_HOST_PORT`
 - `DISTILL_OLLAMA_MODEL`
@@ -56,6 +58,7 @@ Minimal example:
 ```env
 STACK_NAME=openhands-support
 PROJECT_ROOT=$HOME/work/my-project
+CONTEXT7_API_KEY=
 OPENHANDS_PORT=3001
 OLLAMA_HOST_PORT=11435
 DISTILL_OLLAMA_MODEL=qwen3.5:2b
@@ -94,7 +97,7 @@ If you want MCP enabled, add these servers once in the GUI:
 
 - `Context7`
   - transport: `SHTTP`
-  - URL: `https://mcp.context7.com/mcp`
+  - URL: `http://context7-mcp:3000/mcp`
 - `Memory`
   - transport: `SHTTP`
   - URL: `http://memory-mcp:8000/mcp`
@@ -139,3 +142,4 @@ You only lose that state if you explicitly remove the volumes.
 - `distill` inside the runtime talks to `Ollama` through `host.docker.internal`
 - `ChatMock` auth is stored in `${STACK_NAME}-chatmock-state`
 - `OpenHands` uses `${STACK_NAME}-runtime:latest` as its agent-server image
+- `Context7 MCP` is available on the local compose network at `http://context7-mcp:3000/mcp`

@@ -114,6 +114,21 @@ services:
       - memory-data:/data
     restart: unless-stopped
 
+  context7-mcp:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM node:22-slim
+
+        RUN npm install -g @upstash/context7-mcp@2.1.4
+
+        ENTRYPOINT ["context7-mcp"]
+        CMD ["--transport", "http", "--port", "3000"]
+    image: ${STACK_NAME}-context7-mcp:latest
+    environment:
+      CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
+    restart: unless-stopped
+
   openhands:
     image: docker.openhands.dev/openhands/openhands:latest
     depends_on:
@@ -122,6 +137,8 @@ services:
       runtime-image:
         condition: service_completed_successfully
       chatmock:
+        condition: service_started
+      context7-mcp:
         condition: service_started
       memory-mcp:
         condition: service_started
