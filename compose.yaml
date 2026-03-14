@@ -14,102 +14,6 @@ services:
       - "true"
     restart: "no"
 
-  openhands-init:
-    image: python:3.13-slim
-    depends_on:
-      runtime-image:
-        condition: service_completed_successfully
-    environment:
-      STACK_NAME: ${STACK_NAME}
-      CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
-    volumes:
-      - openhands-state:/state
-    entrypoint:
-      - /bin/sh
-      - -lc
-    command: |
-      mkdir -p /state
-      python - <<'PY'
-      import json
-      import os
-      from pathlib import Path
-
-      state_dir = Path("/state")
-      settings_path = state_dir / "settings.json"
-      mcp_path = state_dir / "mcp.json"
-      runtime_image = f"{os.environ.get('STACK_NAME', 'openhands-support')}-runtime:latest"
-      context7_api_key = os.environ.get("CONTEXT7_API_KEY", "").strip()
-
-      def load_json(path: Path) -> dict:
-          if not path.exists():
-              return {}
-          try:
-              return json.loads(path.read_text(encoding="utf-8"))
-          except json.JSONDecodeError:
-              return {}
-
-      def write_json(path: Path, payload: dict) -> None:
-          path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-
-      settings = load_json(settings_path)
-      settings.update(
-          {
-              "language": settings.get("language", "en"),
-              "agent": "CodeActAgent",
-              "confirmation_mode": False,
-              "llm_model": "openai/gpt-5.1-codex-max",
-              "llm_api_key": "chatmock",
-              "llm_base_url": "http://chatmock:5000/v1",
-              "enable_default_condenser": True,
-              "enable_sound_notifications": False,
-              "enable_proactive_conversation_starters": False,
-              "enable_solvability_analysis": False,
-              "user_consents_to_analytics": False,
-              "sandbox_base_container_image": runtime_image,
-              "sandbox_runtime_container_image": runtime_image,
-              "search_api_key": None,
-              "sandbox_api_key": None,
-              "condenser_max_size": 240,
-              "git_user_name": "openhands",
-              "git_user_email": "openhands@all-hands.dev",
-              "v1_enabled": True,
-          }
-      )
-
-      shttp_servers = [
-          {"url": "http://context7-mcp:3000/mcp", "api_key": None, "timeout": 60},
-          {"url": "http://memory-mcp:8000/mcp", "api_key": None, "timeout": 60},
-      ]
-      if context7_api_key:
-          shttp_servers[0]["api_key"] = context7_api_key
-
-      settings["mcp_config"] = {
-          "sse_servers": [],
-          "stdio_servers": [],
-          "shttp_servers": shttp_servers,
-      }
-
-      mcp_json = load_json(mcp_path)
-      mcp_servers = mcp_json.get("mcpServers", {})
-      mcp_servers["context7"] = {
-          "transport": "http",
-          "url": "http://context7-mcp:3000/mcp",
-          "enabled": True,
-      }
-      if context7_api_key:
-          mcp_servers["context7"]["headers"] = {"context7-api-key": context7_api_key}
-      mcp_servers["memory"] = {
-          "transport": "http",
-          "url": "http://memory-mcp:8000/mcp",
-          "enabled": True,
-      }
-      mcp_json["mcpServers"] = mcp_servers
-
-      write_json(settings_path, settings)
-      write_json(mcp_path, mcp_json)
-      PY
-    restart: "no"
-
   chatmock:
     build:
       context: ./chatmock
@@ -223,9 +127,9 @@ services:
     image: docker.openhands.dev/openhands/openhands:latest
     container_name: ${STACK_NAME}-openhands
     depends_on:
-      openhands-init:
-        condition: service_completed_successfully
       ollama-setup:
+        condition: service_completed_successfully
+      runtime-image:
         condition: service_completed_successfully
       chatmock:
         condition: service_started

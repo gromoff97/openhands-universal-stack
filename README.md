@@ -6,7 +6,6 @@ Reusable Docker Compose stack for `OpenHands` with:
 - `Ollama` for `distill`
 - `Context7`
 - `Memory MCP`
-- automatic preseeded `OpenHands` settings and MCP config
 
 This repository is infrastructure only. It does not include project-local workflow files such as:
 
@@ -92,12 +91,7 @@ This will:
 - build the local images
 - start `ChatMock`, `Ollama`, `Context7`, and `Memory MCP`
 - create the shared runtime image used by `OpenHands`
-- write `OpenHands` settings into the persistent Docker state volume
-- preconfigure `OpenHands` to use:
-  - `gpt-5.1-codex-max`
-  - `http://chatmock:5000/v1`
-  - `Context7`
-  - `Memory MCP`
+- create persistent Docker volumes for `OpenHands`, `ChatMock`, `Ollama`, and `Memory MCP`
 
 ### 2. Log into ChatMock once
 
@@ -113,7 +107,36 @@ Then:
 
 The auth token is stored in the persistent Docker volume `${STACK_NAME}-chatmock-state` and reused on future runs.
 
-### 3. Restart once after login
+### 3. Configure OpenHands once in the GUI
+
+Open:
+
+```text
+http://localhost:<OPENHANDS_PORT>
+```
+
+Recommended values:
+
+- model: `gpt-5.1-codex-max`
+- base URL: `http://chatmock:5000/v1`
+- API key: `chatmock`
+- agent: `CodeActAgent`
+- condenser size: `240`
+- memory condensation: `ON`
+- confirmation mode: `OFF`
+
+Then add MCP servers once:
+
+- `Context7`
+  - transport: `SHTTP`
+  - URL: `http://context7-mcp:3000/mcp`
+- `Memory`
+  - transport: `SHTTP`
+  - URL: `http://memory-mcp:8000/mcp`
+
+When you save them, `OpenHands` writes its normal `settings.json`, `mcp.json`, and other state into the persistent Docker volume `${STACK_NAME}-openhands-state`.
+
+### 4. Restart once
 
 ```bash
 docker compose down
@@ -126,31 +149,6 @@ After that, the normal cycle is just:
 docker compose up -d --build
 docker compose down
 ```
-
-No extra GUI configuration should be needed unless the ChatMock auth expires.
-
-## Open the GUI
-
-Open:
-
-```text
-http://localhost:<OPENHANDS_PORT>
-```
-
-For example, if `OPENHANDS_PORT=3001`, open `http://localhost:3001`.
-
-## What Gets Preseeded
-
-The stack writes `OpenHands` state automatically into the persistent Docker volume `${STACK_NAME}-openhands-state`:
-
-- model: `gpt-5.1-codex-max`
-- base URL: `http://chatmock:5000/v1`
-- API key: `chatmock`
-- agent: `CodeActAgent`
-- condenser size: `240`
-- memory condensation: `ON`
-- confirmation mode: `OFF`
-- `Context7` and `Memory MCP` pre-registered in MCP config
 
 ## Daily Usage
 
@@ -197,4 +195,4 @@ If a port is busy:
 - `distill` inside the sandbox talks to `Ollama` through `host.docker.internal`.
 - `ChatMock` auth is stored in the Docker volume `${STACK_NAME}-chatmock-state`.
 - `OpenHands` state is stored in the Docker volume `${STACK_NAME}-openhands-state`.
-- After the first successful `ChatMock` login, future runs are just `docker compose up -d --build` and `docker compose down`.
+- After the first successful `ChatMock` login and one-time GUI configuration, future runs are just `docker compose up -d --build` and `docker compose down`.
