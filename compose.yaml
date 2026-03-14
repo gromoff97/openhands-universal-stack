@@ -87,38 +87,25 @@ services:
     restart: "no"
 
   context7-mcp:
-    build:
-      context: ./context7
-    image: ${STACK_NAME}-context7-mcp:latest
+    image: node:22-slim
     container_name: ${STACK_NAME}-context7-mcp
     environment:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
     command:
-      - --transport
-      - http
-      - --port
-      - "3000"
+      - /bin/sh
+      - -lc
+      - exec npx -y @upstash/context7-mcp@2.1.4 --transport http --port 3000
     restart: unless-stopped
 
   memory-mcp:
-    build:
-      context: ./memory
-    image: ${STACK_NAME}-memory-mcp:latest
+    image: node:22-slim
     container_name: ${STACK_NAME}-memory-mcp
     environment:
       MEMORY_FILE_PATH: /data/memory.jsonl
     command:
-      - supergateway
-      - --stdio
-      - mcp-server-memory
-      - --outputTransport
-      - streamableHttp
-      - --port
-      - "8000"
-      - --streamableHttpPath
-      - /mcp
-      - --healthEndpoint
-      - /healthz
+      - /bin/sh
+      - -lc
+      - exec npx -y supergateway@3.4.3 --stdio "npx -y @modelcontextprotocol/server-memory@2026.1.26" --outputTransport streamableHttp --port 8000 --streamableHttpPath /mcp --healthEndpoint /healthz
     volumes:
       - memory-data:/data
     restart: unless-stopped

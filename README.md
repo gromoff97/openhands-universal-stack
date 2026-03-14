@@ -1,47 +1,40 @@
 # OpenHands Universal Stack
 
-Reusable Docker Compose stack for `OpenHands` with:
+Reusable Docker Compose stack for `OpenHands`.
 
-- `ChatMock` fixed to `gpt-5.1-codex-max` with `low` reasoning
-- `Ollama` for `distill`
+Included services:
+
+- `OpenHands`
+- `ChatMock`
+- `Ollama`
 - `Context7`
 - `Memory MCP`
 
-This repository is infrastructure only. It does not include project-local workflow files such as:
+This repository contains only the infrastructure for that stack. It does not define any project-local workflow or repository conventions.
 
-- `OPENHANDS.md`
-- `PLAN.md`
-- `TODO.md`
-- `DECISIONS.md`
-- `EVIDENCE.md`
-- `logs/`
-
-Keep those in the target project or in your own workflow layer.
-
-## Prerequisites
-
-You need:
+## Requirements
 
 - Linux or WSL2
 - Docker with `docker compose`
 - Docker `buildx`
-- a project located on the Linux filesystem, not on `/mnt/c/...`, if you want stable git and `Changes` behavior
+- a target project available on the Linux filesystem
 
-Recommended project location:
+For WSL, prefer a Linux path such as:
 
 ```bash
-mkdir -p "$HOME/work"
-rsync -a /path/to/source-project/ "$HOME/work/my-project/"
+$HOME/work/my-project
 ```
 
-## Repository Layout
+instead of `/mnt/c/...` if you want stable git and `Changes` behavior.
 
-- `compose.yaml`: service topology
-- `chatmock/`: pinned ChatMock image
-- `runtime/`: runtime image with `distill`
-- `context7/`: Context7 image
-- `memory/`: Memory MCP image
-- `.env.example`: configuration template
+## Files
+
+- `compose.yaml`
+- `.env.example`
+- `chatmock/Dockerfile`
+- `runtime/Dockerfile`
+
+`chatmock` and `runtime` still use custom images because they need pinned application/runtime setup. The other services run directly from stock images in `compose.yaml`.
 
 ## Configuration
 
@@ -51,22 +44,17 @@ Copy `.env.example` to `.env`:
 cp .env.example .env
 ```
 
-Then edit `.env`.
-
-Important fields:
+Main variables:
 
 - `STACK_NAME`
-  - names containers, built images, and persistent Docker volumes
 - `PROJECT_ROOT`
-  - absolute Linux path to the target project
 - `OPENHANDS_PORT`
-  - host port for the GUI
 - `OLLAMA_HOST_PORT`
-  - host port for `Ollama`
 - `CONTEXT7_API_KEY`
-  - optional
+- `DISTILL_OLLAMA_MODEL`
+- `DISTILL_TIMEOUT_MS`
 
-Example:
+Minimal example:
 
 ```env
 STACK_NAME=openhands-support
@@ -78,54 +66,35 @@ DISTILL_OLLAMA_MODEL=qwen3.5:2b
 DISTILL_TIMEOUT_MS=90000
 ```
 
-## First-Time Setup
+## First Run
 
-### 1. Build and start the stack
+Start the stack:
 
 ```bash
 docker compose up -d --build
 ```
 
-This will:
-
-- build the local images
-- start `ChatMock`, `Ollama`, `Context7`, and `Memory MCP`
-- create the shared runtime image used by `OpenHands`
-- create persistent Docker volumes for `OpenHands`, `ChatMock`, `Ollama`, and `Memory MCP`
-
-### 2. Log into ChatMock once
+Log into ChatMock once:
 
 ```bash
 docker compose --profile login run --rm --service-ports chatmock-login
 ```
 
-Then:
-
-1. open the printed auth URL
-2. sign in to the desired ChatGPT account
-3. finish the callback flow
-
-The auth token is stored in the persistent Docker volume `${STACK_NAME}-chatmock-state` and reused on future runs.
-
-### 3. Configure OpenHands once in the GUI
-
-Open:
+Then open `OpenHands`:
 
 ```text
 http://localhost:<OPENHANDS_PORT>
 ```
 
-Recommended values:
+and save your preferred settings in the GUI.
+
+Recommended values for this stack:
 
 - model: `gpt-5.1-codex-max`
 - base URL: `http://chatmock:5000/v1`
 - API key: `chatmock`
-- agent: `CodeActAgent`
-- condenser size: `240`
-- memory condensation: `ON`
-- confirmation mode: `OFF`
 
-Then add MCP servers once:
+If you want MCP enabled, add these servers once in the GUI:
 
 - `Context7`
   - transport: `SHTTP`
@@ -134,65 +103,40 @@ Then add MCP servers once:
   - transport: `SHTTP`
   - URL: `http://memory-mcp:8000/mcp`
 
-When you save them, `OpenHands` writes its normal `settings.json`, `mcp.json`, and other state into the persistent Docker volume `${STACK_NAME}-openhands-state`.
-
-### 4. Restart once
+Then restart once:
 
 ```bash
 docker compose down
 docker compose up -d --build
 ```
 
-After that, the normal cycle is just:
+After that, normal usage is just:
 
 ```bash
 docker compose up -d --build
 docker compose down
 ```
 
-## Daily Usage
+## Persistence
 
-Start:
+The stack keeps its state in Docker named volumes:
 
-```bash
-docker compose up -d --build
-```
+- `${STACK_NAME}-openhands-state`
+- `${STACK_NAME}-chatmock-state`
+- `${STACK_NAME}-ollama-data`
+- `${STACK_NAME}-memory-data`
 
-Stop:
+That means:
 
-```bash
-docker compose down
-```
+- `ChatMock` login survives normal restarts
+- `OpenHands` GUI settings survive normal restarts
+- `Ollama` model data survives normal restarts
 
-Re-login if ChatMock auth expires:
-
-```bash
-docker compose --profile login run --rm --service-ports chatmock-login
-docker compose down
-docker compose up -d --build
-```
-
-## Troubleshooting
-
-If `Changes` fails in `OpenHands`:
-
-- move the project to a Linux path such as `$HOME/work/my-project`
-- avoid `/mnt/c/...`
-
-If the GUI starts but you cannot use the model:
-
-- rerun the `chatmock-login` command
-- restart the stack
-
-If a port is busy:
-
-- change `OPENHANDS_PORT` or `OLLAMA_HOST_PORT` in `.env`
-- restart the stack
+You only lose that state if you explicitly remove the volumes.
 
 ## Notes
 
-- The mounted project appears inside the sandbox at `/workspace/project`.
-- `distill` inside the sandbox talks to `Ollama` through `host.docker.internal`.
-- `ChatMock` auth is stored in the Docker volume `${STACK_NAME}-chatmock-state`.
-- `OpenHands` state is stored in the Docker volume `${STACK_NAME}-openhands-state`.
-- After the first successful `ChatMock` login and one-time GUI configuration, future runs are just `docker compose up -d --build` and `docker compose down`.
+- the project is mounted into the runtime at `/workspace/project`
+- `distill` inside the runtime talks to `Ollama` through `host.docker.internal`
+- `ChatMock` auth is stored in `${STACK_NAME}-chatmock-state`
+- `OpenHands` state is stored in `${STACK_NAME}-openhands-state`
