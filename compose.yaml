@@ -1,3 +1,6 @@
+x-sh-lc: &sh-lc ["/bin/sh", "-lc"]
+x-chatmock-serve: &chatmock-serve ["serve", "--host", "0.0.0.0", "--port", "5000", "--debug-model", "gpt-5.1-codex-max", "--reasoning-effort", "low", "--reasoning-summary", "none"]
+
 x-chatmock-build: &chatmock-build
   context: .
   dockerfile_inline: |
@@ -51,11 +54,8 @@ services:
         DISTILL_MODEL: "${DISTILL_OLLAMA_MODEL}"
         DISTILL_TIMEOUT_MS: "${DISTILL_TIMEOUT_MS}"
     image: ${STACK_NAME}-runtime:latest
-    entrypoint:
-      - /bin/sh
-      - -lc
-    command:
-      - "true"
+    entrypoint: *sh-lc
+    command: "true"
     restart: "no"
 
   chatmock:
@@ -66,18 +66,7 @@ services:
       CHATGPT_LOCAL_HOME: /config
     volumes:
       - chatmock-state:/config
-    command:
-      - serve
-      - --host
-      - 0.0.0.0
-      - --port
-      - "5000"
-      - --debug-model
-      - gpt-5.1-codex-max
-      - --reasoning-effort
-      - low
-      - --reasoning-summary
-      - none
+    command: *chatmock-serve
     restart: unless-stopped
 
   chatmock-login:
@@ -122,11 +111,8 @@ services:
     environment:
       OLLAMA_HOST: http://ollama:11434
       DISTILL_OLLAMA_MODEL: ${DISTILL_OLLAMA_MODEL}
-    entrypoint:
-      - /bin/sh
-      - -lc
-    command:
-      - ollama pull "${DISTILL_OLLAMA_MODEL}"
+    entrypoint: *sh-lc
+    command: 'ollama pull "${DISTILL_OLLAMA_MODEL}"'
     restart: "no"
 
   context7-mcp:
@@ -134,10 +120,11 @@ services:
     container_name: ${STACK_NAME}-context7-mcp
     environment:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
-    command:
-      - /bin/sh
-      - -lc
-      - exec npx -y @upstash/context7-mcp@2.1.4 --transport http --port 3000
+    entrypoint: *sh-lc
+    command: >
+      exec npx -y @upstash/context7-mcp@2.1.4
+      --transport http
+      --port 3000
     restart: unless-stopped
 
   memory-mcp:
@@ -145,10 +132,14 @@ services:
     container_name: ${STACK_NAME}-memory-mcp
     environment:
       MEMORY_FILE_PATH: /data/memory.jsonl
-    command:
-      - /bin/sh
-      - -lc
-      - exec npx -y supergateway@3.4.3 --stdio "npx -y @modelcontextprotocol/server-memory@2026.1.26" --outputTransport streamableHttp --port 8000 --streamableHttpPath /mcp --healthEndpoint /healthz
+    entrypoint: *sh-lc
+    command: >
+      exec npx -y supergateway@3.4.3
+      --stdio "npx -y @modelcontextprotocol/server-memory@2026.1.26"
+      --outputTransport streamableHttp
+      --port 8000
+      --streamableHttpPath /mcp
+      --healthEndpoint /healthz
     volumes:
       - memory-data:/data
     restart: unless-stopped
