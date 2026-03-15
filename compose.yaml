@@ -47,33 +47,28 @@ services:
         RUN git clone https://github.com/RayBytes/ChatMock.git . \
             && git checkout "$$CHATMOCK_COMMIT"
 
-        COPY scripts/patch_chatmock_responses.py /tmp/patch_chatmock_responses.py
-        RUN python /tmp/patch_chatmock_responses.py
+        RUN pip install --no-cache-dir . gunicorn
 
-        RUN pip install --no-cache-dir .
+        WORKDIR /app
+        COPY scripts/chatmock_proxy.py /app/chatmock_proxy.py
 
         ENV CHATGPT_LOCAL_HOME=/config
         ENV PYTHONUNBUFFERED=1
 
         VOLUME ["/config"]
-
-        ENTRYPOINT ["chatmock"]
     image: ${STACK_NAME:?Set STACK_NAME in .env}-chatmock:latest
     command:
       [
-        "serve",
-        "--host",
-        "0.0.0.0",
-        "--port",
-        "5000",
-        "--verbose",
-        "--debug-model",
-        "${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}",
-        "--reasoning-effort",
-        "${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}",
-        "--reasoning-summary",
-        "${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}",
+        "gunicorn",
+        "--bind",
+        "0.0.0.0:5000",
+        "chatmock_proxy:app",
       ]
+    environment:
+      CHATMOCK_MODEL: ${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}
+      CHATMOCK_REASONING_EFFORT: ${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}
+      CHATMOCK_REASONING_SUMMARY: ${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}
+      CHATMOCK_VERBOSE: "true"
     ports:
       - "5000:5000"
     volumes:
@@ -168,6 +163,7 @@ services:
       - chatmock-state:/config
     ports:
       - "1455:1455"
+    entrypoint: ["chatmock"]
     command: ["login"]
     stdin_open: true
     tty: true

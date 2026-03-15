@@ -115,18 +115,24 @@ Upstream `ChatMock` still exposes:
 - `/v1/chat/completions`
 - `/v1/completions`
 
-Because of that, this stack applies a small build-time compatibility patch so
-`ChatMock` can answer `/v1/responses`.
+This stack solves that by running a small proxy app on top of the stock
+`ChatMock` package. The proxy adds `/v1/responses`, keeps the normal OpenAI
+compatibility endpoints, and forwards real upstream requests through
+`CHATMOCK_MODEL`.
 
-That patch is required. The earlier retry patch has been removed.
+That means:
+
+- `OpenHands` can keep talking to `http://chatmock:5000/v1`
+- the model name entered in the UI only needs to be an OpenAI-style identifier
+- the actual upstream ChatGPT model is controlled by `CHATMOCK_MODEL`
 
 ## UI Settings Reference
 
 Expected LLM settings in the OpenHands UI:
 
 - base URL: `http://chatmock:5000/v1`
-- API key: `chatmock`
-- model: use `CHATMOCK_MODEL`
+- API key: any non-empty value
+- model: any OpenAI-style model id; `CHATMOCK_MODEL` controls the real upstream target
 
 Expected MCP settings:
 
