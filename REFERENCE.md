@@ -6,7 +6,7 @@ This repository provides infrastructure for a self-hosted `OpenHands` stack
 with:
 
 - `OpenHands`
-- `ChatMock`
+- `go-chatmock`
 - `Ollama`
 - `Context7 MCP`
 - `Memory MCP`
@@ -49,11 +49,11 @@ User-facing configuration lives in `.env`:
 - `OLLAMA_HOST_PORT`
   - host port for Ollama
 - `CHATMOCK_MODEL`
-  - upstream model selected by ChatMock
+  - upstream model selected by `go-chatmock`
 - `CHATMOCK_REASONING_EFFORT`
-  - upstream reasoning effort for ChatMock
+  - upstream reasoning effort for `go-chatmock`
 - `CHATMOCK_REASONING_SUMMARY`
-  - upstream reasoning summary mode for ChatMock
+  - upstream reasoning summary mode for `go-chatmock`
 - `DISTILL_OLLAMA_MODEL`
   - model used by `distill`
 - `DISTILL_TIMEOUT_MS`
@@ -76,7 +76,7 @@ The stack keeps state in:
 
 This means:
 
-- `ChatMock` login survives normal restarts
+- `go-chatmock` login survives normal restarts
 - `Ollama` model data survives normal restarts
 - `Memory MCP` data survives normal restarts
 - `OpenHands` settings, MCP config, and conversation state survive normal restarts
@@ -106,19 +106,18 @@ rm -rf "${HOME}/.openhands"
 - `Context7` and `Memory` are exposed to OpenHands as MCP servers
 - the sandbox workspace is ephemeral until you connect a repository
 
-## ChatMock Compatibility
+## Chat Backend
 
 Current `OpenHands` uses `/v1/responses` with OpenAI-compatible backends.
-Upstream `ChatMock` still exposes:
+This stack uses `go-chatmock` because it already provides:
 
 - `/v1/models`
 - `/v1/chat/completions`
 - `/v1/completions`
+- `/v1/responses`
 
-This stack solves that by running a small proxy app on top of the stock
-`ChatMock` package. The proxy adds `/v1/responses`, keeps the normal OpenAI
-compatibility endpoints, and forwards real upstream requests through
-`CHATMOCK_MODEL`.
+It also supports forcing the real upstream ChatGPT model through
+`CHATMOCK_MODEL` while keeping the `OpenHands`-side base URL unchanged.
 
 That means:
 

@@ -33,42 +33,25 @@ services:
   chatmock:
     build:
       context: .
-      dockerfile_inline: |
-        FROM python:3.13-slim
-
-        ARG CHATMOCK_COMMIT=baf312a02e54dd62ab74be485759da5ee9ccf226
-
-        WORKDIR /src
-
-        RUN apt-get update \
-            && apt-get install -y --no-install-recommends git ca-certificates \
-            && rm -rf /var/lib/apt/lists/*
-
-        RUN git clone https://github.com/RayBytes/ChatMock.git . \
-            && git checkout "$$CHATMOCK_COMMIT"
-
-        RUN pip install --no-cache-dir . gunicorn
-
-        WORKDIR /app
-        COPY scripts/chatmock_proxy.py /app/chatmock_proxy.py
-
-        ENV CHATGPT_LOCAL_HOME=/config
-        ENV PYTHONUNBUFFERED=1
-
-        VOLUME ["/config"]
+      dockerfile: chatmock/Dockerfile
+      args:
+        GO_CHATMOCK_COMMIT: 0f12a129a62739d4e32c06161a244a844f420b32
     image: ${STACK_NAME:?Set STACK_NAME in .env}-chatmock:latest
     command:
       [
-        "gunicorn",
-        "--bind",
-        "0.0.0.0:5000",
-        "chatmock_proxy:app",
+        "serve",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "5000",
+        "--debug-model",
+        "${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}",
+        "--reasoning-effort",
+        "${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}",
+        "--reasoning-summary",
+        "${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}",
+        "--verbose",
       ]
-    environment:
-      CHATMOCK_MODEL: ${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}
-      CHATMOCK_REASONING_EFFORT: ${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}
-      CHATMOCK_REASONING_SUMMARY: ${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}
-      CHATMOCK_VERBOSE: "true"
     ports:
       - "5000:5000"
     volumes:
@@ -77,9 +60,9 @@ services:
       test:
         [
           "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/v1/models', timeout=5).read()",
+          "curl",
+          "-fsS",
+          "http://127.0.0.1:5000/v1/models",
         ]
       interval: 10s
       timeout: 5s
@@ -163,7 +146,8 @@ services:
       - chatmock-state:/config
     ports:
       - "1455:1455"
-    entrypoint: ["chatmock"]
+    environment:
+      CHATGPT_LOCAL_LOGIN_BIND: 0.0.0.0
     command: ["login"]
     stdin_open: true
     tty: true
