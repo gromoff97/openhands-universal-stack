@@ -9,9 +9,8 @@ import adapter.converter.StreamingChatCompletionToResponsesSseConverter
 import adapter.http.corsFilter
 import adapter.model.ChatCompletionResponse
 import adapter.model.ResponsesRequest
-import adapter.route.AdaptedPostRouteConfig
-import adapter.route.PassThroughRouteConfig
 import adapter.route.RouteConfig
+import adapter.route.routingConfig
 import adapter.service.AdapterServiceFactory
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method.GET
@@ -29,10 +28,10 @@ fun main() {
 private fun adapterApp(): HttpHandler {
     val service = AdapterServiceFactory.create(adapterBackendBaseUrl)
     val routeConfigs = listOf<RouteConfig>(
-        PassThroughRouteConfig("/v1/models", GET, "/v1/models"),
-        PassThroughRouteConfig("/v1/chat/completions", POST, "/v1/chat/completions"),
-        PassThroughRouteConfig("/v1/completions", POST, "/v1/completions"),
-        AdaptedPostRouteConfig(
+        routingConfig("/v1/models", GET, "/v1/models"),
+        routingConfig("/v1/chat/completions", POST, "/v1/chat/completions"),
+        routingConfig("/v1/completions", POST, "/v1/completions"),
+        routingConfig(
             publicPath = "/v1/responses",
             requestType = ResponsesRequest::class.java,
             requestConverter = ResponsesRequestToChatCompletionRequestConverter(adapterDefaultModel),
@@ -49,5 +48,5 @@ private fun adapterApp(): HttpHandler {
 
 private fun buildRoutes(service: adapter.service.AdapterService, routeConfigs: List<RouteConfig>) =
     routeConfigs.flatMap { routeConfig ->
-        listOf(routeConfig.bind(service), routeConfig.preflight())
+        routeConfig.handlers(service)
     }
