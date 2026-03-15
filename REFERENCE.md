@@ -6,7 +6,8 @@ This repository provides infrastructure for a self-hosted `OpenHands` stack
 with:
 
 - `OpenHands`
-- `go-chatmock`
+- `ChatMock`
+- `chatmock-proxy`
 - `Ollama`
 - `Context7 MCP`
 - `Memory MCP`
@@ -27,6 +28,7 @@ The stack is organized by responsibility:
 - long-lived services
   - `openhands`
   - `chatmock`
+  - `chatmock-proxy`
   - `ollama`
   - `context7-mcp`
   - `memory-mcp`
@@ -49,11 +51,11 @@ User-facing configuration lives in `.env`:
 - `OLLAMA_HOST_PORT`
   - host port for Ollama
 - `CHATMOCK_MODEL`
-  - upstream model selected by `go-chatmock`
+  - upstream ChatGPT model selected by `ChatMock`
 - `CHATMOCK_REASONING_EFFORT`
-  - upstream reasoning effort for `go-chatmock`
+  - upstream reasoning effort for `ChatMock`
 - `CHATMOCK_REASONING_SUMMARY`
-  - upstream reasoning summary mode for `go-chatmock`
+  - upstream reasoning summary mode for `ChatMock`
 - `DISTILL_OLLAMA_MODEL`
   - model used by `distill`
 - `DISTILL_TIMEOUT_MS`
@@ -76,7 +78,7 @@ The stack keeps state in:
 
 This means:
 
-- `go-chatmock` login survives normal restarts
+- `ChatMock` login survives normal restarts
 - `Ollama` model data survives normal restarts
 - `Memory MCP` data survives normal restarts
 - `OpenHands` settings, MCP config, and conversation state survive normal restarts
@@ -108,17 +110,23 @@ rm -rf "${HOME}/.openhands"
 
 ## Chat Backend
 
-Current `OpenHands` uses `/v1/responses` with OpenAI-compatible backends.
-This stack uses `go-chatmock` because it already provides:
-
-- `/v1/models`
-- `/v1/chat/completions`
-- `/v1/completions`
-- `/v1/responses`
-
-This stack uses the original Python `ChatMock` server plus a small local
-compatibility layer for the `/v1/responses` route that `OpenHands` uses for
+Current `OpenHands` uses `/v1/responses` with OpenAI-compatible backends for
 `gpt-5*` models.
+
+Stock Python `ChatMock` provides the core OpenAI-compatible backend and login
+flow, but it does not expose `/v1/responses`.
+
+This stack therefore splits the chat layer into two long-lived services:
+
+- `chatmock`
+  - the stock Python `ChatMock` backend
+  - keeps login state in the shared `chatmock-state` volume
+  - serves the stock endpoints such as `/v1/models`, `/v1/chat/completions`,
+    and `/v1/completions`
+- `chatmock-proxy`
+  - the front door for `OpenHands`
+  - proxies the stock routes to `chatmock`
+  - adds a compatibility `/v1/responses` endpoint for `OpenHands`
 
 It also supports forcing the real upstream ChatGPT model through
 `CHATMOCK_MODEL` while keeping the `OpenHands`-side base URL unchanged.

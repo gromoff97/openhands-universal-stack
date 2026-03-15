@@ -59,6 +59,50 @@ services:
     image: ${STACK_NAME:?Set STACK_NAME in .env}-chatmock:latest
     command:
       [
+        "chatmock",
+        "serve",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "8000",
+        "--debug-model",
+        "${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}",
+        "--reasoning-effort",
+        "${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}",
+        "--reasoning-summary",
+        "${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}",
+        "--verbose",
+      ]
+    environment:
+      CHATMOCK_MODEL: ${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}
+      CHATMOCK_REASONING_EFFORT: ${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}
+      CHATMOCK_REASONING_SUMMARY: ${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}
+      CHATMOCK_VERBOSE: "true"
+    expose:
+      - "8000"
+    volumes:
+      - chatmock-state:/config
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/v1/models', timeout=5).read()",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+  chatmock-proxy:
+    image: ${STACK_NAME:?Set STACK_NAME in .env}-chatmock:latest
+    depends_on:
+      chatmock:
+        condition: service_healthy
+    command:
+      [
         "gunicorn",
         "--bind",
         "0.0.0.0:5000",
@@ -69,6 +113,7 @@ services:
       CHATMOCK_REASONING_EFFORT: ${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}
       CHATMOCK_REASONING_SUMMARY: ${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}
       CHATMOCK_VERBOSE: "true"
+      CHATMOCK_BACKEND_BASE: http://chatmock:8000
     ports:
       - "5000:5000"
     volumes:
@@ -163,8 +208,7 @@ services:
       - chatmock-state:/config
     ports:
       - "1455:1455"
-    entrypoint: ["chatmock"]
-    command: ["login"]
+    command: ["chatmock", "login"]
     stdin_open: true
     tty: true
 
@@ -185,6 +229,8 @@ services:
       ollama-pull:
         condition: service_completed_successfully
       chatmock:
+        condition: service_healthy
+      chatmock-proxy:
         condition: service_healthy
       context7-mcp:
         condition: service_healthy

@@ -2,9 +2,9 @@ import json
 import os
 from typing import Any, Dict, List
 
-from flask import Response, current_app, jsonify, make_response, request
+import requests
+from flask import Flask, Response, current_app, jsonify, make_response, request
 
-from chatmock.app import create_app
 from chatmock.config import BASE_INSTRUCTIONS, GPT5_CODEX_INSTRUCTIONS
 from chatmock.http import build_cors_headers
 from chatmock.limits import record_rate_limits_from_response
@@ -23,14 +23,15 @@ VERBOSE = os.getenv("CHATMOCK_VERBOSE", "false").strip().lower() in {"1", "true"
 REASONING_EFFORT = os.getenv("CHATMOCK_REASONING_EFFORT", "low").strip() or "low"
 REASONING_SUMMARY = os.getenv("CHATMOCK_REASONING_SUMMARY", "none").strip() or "none"
 DEFAULT_WEB_SEARCH = os.getenv("CHATMOCK_DEFAULT_WEB_SEARCH", "false").strip().lower() in {"1", "true", "yes", "on"}
+BACKEND_BASE = os.getenv("CHATMOCK_BACKEND_BASE", "http://chatmock:8000").rstrip("/")
 
 
-app = create_app(
-    verbose=VERBOSE,
-    reasoning_effort=REASONING_EFFORT,
-    reasoning_summary=REASONING_SUMMARY,
-    debug_model=TARGET_MODEL,
-    default_web_search=DEFAULT_WEB_SEARCH,
+app = Flask(__name__)
+app.config.update(
+    VERBOSE=VERBOSE,
+    REASONING_EFFORT=REASONING_EFFORT,
+    REASONING_SUMMARY=REASONING_SUMMARY,
+    DEFAULT_WEB_SEARCH=DEFAULT_WEB_SEARCH,
 )
 
 
@@ -62,8 +63,67 @@ def _instructions_for_model(model: str) -> str:
     return BASE_INSTRUCTIONS
 
 
-@app.route("/v1/responses", methods=["POST"])
+def _apply_cors(resp: Response) -> Response:
+    for key, value in build_cors_headers().items():
+        resp.headers.setdefault(key, value)
+    return resp
+
+
+def _preflight_response() -> Response:
+    return _apply_cors(make_response("", 204))
+
+
+def _proxy_to_backend(path: str) -> Response:
+    if request.method == "OPTIONS":
+        return _preflight_response()
+
+    target_url = f"{BACKEND_BASE}{path}"
+    headers = {
+        key: value
+        for key, value in request.headers.items()
+        if key.lower() not in {"host", "content-length", "connection"}
+    }
+    try:
+        upstream = requests.request(
+            method=request.method,
+            url=target_url,
+            params=request.args,
+            data=request.get_data(cache=True),
+            headers=headers,
+            timeout=600,
+        )
+    except requests.RequestException as exc:
+        resp = make_response(jsonify({"error": {"message": f"ChatMock backend unavailable: {exc}"}}), 502)
+        return _apply_cors(resp)
+
+    resp = make_response(upstream.content, upstream.status_code)
+    for key, value in upstream.headers.items():
+        if key.lower() in {"content-length", "connection", "transfer-encoding", "content-encoding"}:
+            continue
+        resp.headers[key] = value
+    return _apply_cors(resp)
+
+
+@app.route("/v1/models", methods=["GET", "OPTIONS"])
+def proxy_models() -> Response:
+    return _proxy_to_backend("/v1/models")
+
+
+@app.route("/v1/chat/completions", methods=["POST", "OPTIONS"])
+def proxy_chat_completions() -> Response:
+    return _proxy_to_backend("/v1/chat/completions")
+
+
+@app.route("/v1/completions", methods=["POST", "OPTIONS"])
+def proxy_completions() -> Response:
+    return _proxy_to_backend("/v1/completions")
+
+
+@app.route("/v1/responses", methods=["POST", "OPTIONS"])
 def responses() -> Response:
+    if request.method == "OPTIONS":
+        return _preflight_response()
+
     verbose = bool(current_app.config.get("VERBOSE"))
     reasoning_effort = current_app.config.get("REASONING_EFFORT", "medium")
     reasoning_summary = current_app.config.get("REASONING_SUMMARY", "auto")
@@ -81,7 +141,7 @@ def responses() -> Response:
         err = {"error": {"message": "Invalid JSON body"}}
         if verbose:
             _log_json("OUT POST /v1/responses", err)
-        return jsonify(err), 400
+        return _apply_cors(make_response(jsonify(err), 400))
 
     requested_model = payload.get("model")
     model = TARGET_MODEL
@@ -110,7 +170,7 @@ def responses() -> Response:
         err = {"error": {"message": "Request must include input: []"}}
         if verbose:
             _log_json("OUT POST /v1/responses", err)
-        return jsonify(err), 400
+        return _apply_cors(make_response(jsonify(err), 400))
 
     tools = payload.get("tools") if isinstance(payload.get("tools"), list) else None
     if tools is None and isinstance(payload.get("responses_tools"), list):
@@ -178,7 +238,7 @@ def responses() -> Response:
                     _log_json("OUT POST /v1/responses", parsed)
             except Exception:
                 pass
-        return error_resp
+        return _apply_cors(error_resp)
 
     record_rate_limits_from_response(upstream)
 
@@ -191,7 +251,7 @@ def responses() -> Response:
         err = {"error": {"message": (err_body.get("error", {}) or {}).get("message", "Upstream error")}}
         if verbose:
             _log_json("OUT POST /v1/responses", err)
-        return jsonify(err), upstream.status_code
+        return _apply_cors(make_response(jsonify(err), upstream.status_code))
 
     if stream_req:
         if verbose:
@@ -207,9 +267,7 @@ def responses() -> Response:
             mimetype="text/event-stream",
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
         )
-        for k, v in build_cors_headers().items():
-            resp.headers.setdefault(k, v)
-        return resp
+        return _apply_cors(resp)
 
     final_response = None
     last_response = None
@@ -247,10 +305,7 @@ def responses() -> Response:
         err = {"error": {"message": error_message or "Upstream response stream ended before response.completed"}}
         if verbose:
             _log_json("OUT POST /v1/responses", err)
-        resp = make_response(jsonify(err), 502)
-        for k, v in build_cors_headers().items():
-            resp.headers.setdefault(k, v)
-        return resp
+        return _apply_cors(make_response(jsonify(err), 502))
 
     if isinstance(requested_model, str) and requested_model.strip():
         final_response["model"] = requested_model
@@ -258,8 +313,4 @@ def responses() -> Response:
     if verbose:
         _log_json("OUT POST /v1/responses", final_response)
 
-    resp = make_response(jsonify(final_response), upstream.status_code)
-    for k, v in build_cors_headers().items():
-        resp.headers.setdefault(k, v)
-    return resp
-
+    return _apply_cors(make_response(jsonify(final_response), upstream.status_code))
