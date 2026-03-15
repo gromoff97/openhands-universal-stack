@@ -95,42 +95,16 @@ services:
 
   adapter:
     build:
-      context: .
-      dockerfile_inline: |
-        FROM python:3.13-slim
-
-        RUN pip install --no-cache-dir flask requests gunicorn
-
-        WORKDIR /app
-        COPY scripts/chatmock_adapter.py /app/chatmock_adapter.py
-        ENV PYTHONUNBUFFERED=1
+      context: ./adapter
+      dockerfile: Dockerfile
     image: ${STACK_NAME:?Set STACK_NAME in .env}-adapter:latest
     depends_on:
       chatmock:
         condition: service_healthy
-    command:
-      [
-        "gunicorn",
-        "--bind",
-        "0.0.0.0:5000",
-        "chatmock_adapter:app",
-      ]
-    environment:
-      CHATMOCK_MODEL: ${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}
-      CHATMOCK_REASONING_EFFORT: ${CHATMOCK_REASONING_EFFORT:?Set CHATMOCK_REASONING_EFFORT in .env}
-      CHATMOCK_REASONING_SUMMARY: ${CHATMOCK_REASONING_SUMMARY:?Set CHATMOCK_REASONING_SUMMARY in .env}
-      CHATMOCK_VERBOSE: "true"
-      CHATMOCK_BACKEND_BASE: http://chatmock:8000
     ports:
       - "5000:5000"
     healthcheck:
-      test:
-        [
-          "CMD",
-          "python",
-          "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/v1/models', timeout=5).read()",
-        ]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:5000/v1/models"]
       interval: 10s
       timeout: 5s
       retries: 12

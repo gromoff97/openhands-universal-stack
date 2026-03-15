@@ -127,9 +127,15 @@ This stack therefore splits the chat layer into two long-lived services:
   - the front door for `OpenHands`
   - proxies the stock routes to `chatmock`
   - adds a compatibility `/v1/responses` endpoint for `OpenHands`
+  - is implemented as a small stateless Kotlin `http4k` service
+  - keeps no state, mounts no volumes, reads no `.env`, and has no own config
+  - is fixed to the backend role `http://chatmock:8000`
+  - is responsible only for protocol translation between `OpenHands` and `ChatMock`
 
 It also supports forcing the real upstream ChatGPT model through
-`CHATMOCK_MODEL` while keeping the `OpenHands`-side base URL unchanged.
+`CHATMOCK_MODEL` while keeping the `OpenHands`-side base URL unchanged. The
+adapter itself does not read that setting; it just translates and forwards
+requests to `chatmock`.
 
 That means:
 
