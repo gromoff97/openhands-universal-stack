@@ -7,7 +7,7 @@ with:
 
 - `OpenHands`
 - `ChatMock`
-- `chatmock-proxy`
+- `adapter`
 - `Ollama`
 - `Context7 MCP`
 - `Memory MCP`
@@ -28,7 +28,7 @@ The stack is organized by responsibility:
 - long-lived services
   - `openhands`
   - `chatmock`
-  - `chatmock-proxy`
+  - `adapter`
   - `ollama`
   - `context7-mcp`
   - `memory-mcp`
@@ -123,7 +123,7 @@ This stack therefore splits the chat layer into two long-lived services:
   - keeps login state in the shared `chatmock-state` volume
   - serves the stock endpoints such as `/v1/models`, `/v1/chat/completions`,
     and `/v1/completions`
-- `chatmock-proxy`
+- `adapter`
   - the front door for `OpenHands`
   - proxies the stock routes to `chatmock`
   - adds a compatibility `/v1/responses` endpoint for `OpenHands`

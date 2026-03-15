@@ -47,10 +47,7 @@ services:
         RUN git clone https://github.com/RayBytes/ChatMock.git . \
             && git checkout "$$CHATMOCK_COMMIT"
 
-        RUN pip install --no-cache-dir . gunicorn
-
-        WORKDIR /app
-        COPY scripts/chatmock_proxy.py /app/chatmock_proxy.py
+        RUN pip install --no-cache-dir .
 
         ENV CHATGPT_LOCAL_HOME=/config
         ENV PYTHONUNBUFFERED=1
@@ -96,8 +93,18 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  chatmock-proxy:
-    image: ${STACK_NAME:?Set STACK_NAME in .env}-chatmock:latest
+  adapter:
+    build:
+      context: .
+      dockerfile_inline: |
+        FROM python:3.13-slim
+
+        RUN pip install --no-cache-dir flask requests gunicorn
+
+        WORKDIR /app
+        COPY scripts/chatmock_adapter.py /app/chatmock_adapter.py
+        ENV PYTHONUNBUFFERED=1
+    image: ${STACK_NAME:?Set STACK_NAME in .env}-adapter:latest
     depends_on:
       chatmock:
         condition: service_healthy
@@ -106,7 +113,7 @@ services:
         "gunicorn",
         "--bind",
         "0.0.0.0:5000",
-        "chatmock_proxy:app",
+        "chatmock_adapter:app",
       ]
     environment:
       CHATMOCK_MODEL: ${CHATMOCK_MODEL:?Set CHATMOCK_MODEL in .env}
@@ -116,8 +123,6 @@ services:
       CHATMOCK_BACKEND_BASE: http://chatmock:8000
     ports:
       - "5000:5000"
-    volumes:
-      - chatmock-state:/config
     healthcheck:
       test:
         [
@@ -228,9 +233,7 @@ services:
         condition: service_completed_successfully
       ollama-pull:
         condition: service_completed_successfully
-      chatmock:
-        condition: service_healthy
-      chatmock-proxy:
+      adapter:
         condition: service_healthy
       context7-mcp:
         condition: service_healthy
