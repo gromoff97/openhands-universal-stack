@@ -11,77 +11,84 @@ import org.http4k.core.Method.OPTIONS
 import org.http4k.routing.RoutingHttpHandler
 import org.http4k.routing.bind
 
-interface RouteConfig {
-    val publicPath: String
+interface RoutingConfig {
+    val sourcePath: String
+    val destinationPath: String
     val method: Method
+    val requestConverter: Converter<*, *>?
+    val responseConverter: Converter<*, *>?
+    val responseStreamConverter: Converter<StreamingBackendResponse, String>?
 
     fun handlers(service: AdapterService): List<RoutingHttpHandler>
 }
 
 fun routingConfig(
-    publicPath: String,
+    sourcePath: String,
     method: Method,
-    backendPath: String,
-): RouteConfig = PassThroughRoutingConfig(
-    publicPath = publicPath,
+    destinationPath: String,
+): RoutingConfig = PassThroughRoutingConfig(
+    sourcePath = sourcePath,
     method = method,
-    backendPath = backendPath,
+    destinationPath = destinationPath,
 )
 
 fun <OriginalRequest : Any, AdaptedRequest : StreamAwareRequest, BackendResponse : Any, AdaptedResponse : Any> routingConfig(
-    publicPath: String,
+    sourcePath: String,
     requestType: Class<OriginalRequest>,
     requestConverter: Converter<OriginalRequest, AdaptedRequest>,
-    backendPath: String,
+    destinationPath: String,
     backendResponseType: Class<BackendResponse>,
     responseConverter: Converter<BackendResponse, AdaptedResponse>,
-    streamingResponseConverter: Converter<StreamingBackendResponse, String>,
-): RouteConfig = AdaptedPostRoutingConfig(
-    publicPath = publicPath,
+    responseStreamConverter: Converter<StreamingBackendResponse, String>,
+): RoutingConfig = AdaptedPostRoutingConfig(
+    sourcePath = sourcePath,
     requestType = requestType,
     requestConverter = requestConverter,
-    backendPath = backendPath,
+    destinationPath = destinationPath,
     backendResponseType = backendResponseType,
     responseConverter = responseConverter,
-    streamingResponseConverter = streamingResponseConverter,
+    responseStreamConverter = responseStreamConverter,
 )
 
 private data class PassThroughRoutingConfig(
-    override val publicPath: String,
+    override val sourcePath: String,
+    override val destinationPath: String,
     override val method: Method,
-    val backendPath: String,
-) : RouteConfig {
+    override val requestConverter: Converter<*, *>? = null,
+    override val responseConverter: Converter<*, *>? = null,
+    override val responseStreamConverter: Converter<StreamingBackendResponse, String>? = null,
+) : RoutingConfig {
     override fun handlers(service: AdapterService): List<RoutingHttpHandler> = listOf(
-        publicPath bind method to { request ->
-            service.handlePassThrough(request, backendPath)
+        sourcePath bind method to { request ->
+            service.handlePassThrough(request, destinationPath)
         },
-        publicPath bind OPTIONS to { preflightResponse() },
+        sourcePath bind OPTIONS to { preflightResponse() },
     )
 }
 
 private data class AdaptedPostRoutingConfig<OriginalRequest : Any, AdaptedRequest : StreamAwareRequest, BackendResponse : Any, AdaptedResponse : Any>(
-    override val publicPath: String,
+    override val sourcePath: String,
+    override val destinationPath: String,
     val requestType: Class<OriginalRequest>,
-    val requestConverter: Converter<OriginalRequest, AdaptedRequest>,
-    val backendPath: String,
+    override val requestConverter: Converter<OriginalRequest, AdaptedRequest>,
     val backendResponseType: Class<BackendResponse>,
-    val responseConverter: Converter<BackendResponse, AdaptedResponse>,
-    val streamingResponseConverter: Converter<StreamingBackendResponse, String>,
-) : RouteConfig {
+    override val responseConverter: Converter<BackendResponse, AdaptedResponse>,
+    override val responseStreamConverter: Converter<StreamingBackendResponse, String>,
+) : RoutingConfig {
     override val method: Method = POST
 
     override fun handlers(service: AdapterService): List<RoutingHttpHandler> = listOf(
-        publicPath bind method to { request ->
+        sourcePath bind method to { request ->
             service.handleAdaptedPost(
                 request = request,
                 requestType = requestType,
                 requestConverter = requestConverter,
-                backendPath = backendPath,
+                backendPath = destinationPath,
                 backendResponseType = backendResponseType,
                 responseConverter = responseConverter,
-                streamingResponseConverter = streamingResponseConverter,
+                streamingResponseConverter = responseStreamConverter,
             )
         },
-        publicPath bind OPTIONS to { preflightResponse() },
+        sourcePath bind OPTIONS to { preflightResponse() },
     )
 }

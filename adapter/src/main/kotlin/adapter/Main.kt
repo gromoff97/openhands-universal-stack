@@ -9,9 +9,10 @@ import adapter.converter.StreamingChatCompletionToResponsesSseConverter
 import adapter.http.corsFilter
 import adapter.model.ChatCompletionResponse
 import adapter.model.ResponsesRequest
-import adapter.route.RouteConfig
+import adapter.route.RoutingConfig
 import adapter.route.routingConfig
 import adapter.service.AdapterServiceFactory
+import adapter.service.AdapterService
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method.GET
 import org.http4k.core.Method.POST
@@ -27,18 +28,18 @@ fun main() {
 
 private fun adapterApp(): HttpHandler {
     val service = AdapterServiceFactory.create(adapterBackendBaseUrl)
-    val routeConfigs = listOf<RouteConfig>(
-        routingConfig("/v1/models", GET, "/v1/models"),
-        routingConfig("/v1/chat/completions", POST, "/v1/chat/completions"),
-        routingConfig("/v1/completions", POST, "/v1/completions"),
+    val routeConfigs = listOf<RoutingConfig>(
+        routingConfig(sourcePath = "/v1/models", method = GET, destinationPath = "/v1/models"),
+        routingConfig(sourcePath = "/v1/chat/completions", method = POST, destinationPath = "/v1/chat/completions"),
+        routingConfig(sourcePath = "/v1/completions", method = POST, destinationPath = "/v1/completions"),
         routingConfig(
-            publicPath = "/v1/responses",
+            sourcePath = "/v1/responses",
             requestType = ResponsesRequest::class.java,
             requestConverter = ResponsesRequestToChatCompletionRequestConverter(adapterDefaultModel),
-            backendPath = "/v1/chat/completions",
+            destinationPath = "/v1/chat/completions",
             backendResponseType = ChatCompletionResponse::class.java,
             responseConverter = ChatCompletionResponseToResponsesApiResponseConverter(adapterDefaultModel),
-            streamingResponseConverter = StreamingChatCompletionToResponsesSseConverter(adapterDefaultModel),
+            responseStreamConverter = StreamingChatCompletionToResponsesSseConverter(adapterDefaultModel),
         ),
     )
     val app = routes(*buildRoutes(service, routeConfigs).toTypedArray())
@@ -46,7 +47,7 @@ private fun adapterApp(): HttpHandler {
     return corsFilter().then(app)
 }
 
-private fun buildRoutes(service: adapter.service.AdapterService, routeConfigs: List<RouteConfig>) =
+private fun buildRoutes(service: AdapterService, routeConfigs: List<RoutingConfig>) =
     routeConfigs.flatMap { routeConfig ->
         routeConfig.handlers(service)
     }
