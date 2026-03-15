@@ -212,7 +212,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HOME}/.openhands:/.openhands
-      - ./config/openhands/config.toml:/app/config.toml:ro
     restart: unless-stopped
 
 volumes:
