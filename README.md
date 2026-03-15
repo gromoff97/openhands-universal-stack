@@ -31,15 +31,7 @@ The stack is organized by responsibility:
 - Linux or WSL2
 - Docker with `docker compose`
 - Docker `buildx`
-- a target project on the Linux filesystem
-
-For WSL, prefer a Linux path such as:
-
-```bash
-$HOME/work/my-project
-```
-
-instead of `/mnt/c/...` if you want stable git and `Changes` behavior.
+- a GitHub repository you plan to connect from the UI
 
 ## Configure
 
@@ -52,7 +44,7 @@ cp .env.example .env
 Required variables:
 
 - `STACK_NAME`
-- `PROJECT_ROOT`
+- `WORKSPACE_ROOT`
 - `OH_SECRET_KEY`
 - `OPENHANDS_PORT`
 - `OLLAMA_HOST_PORT`
@@ -70,7 +62,7 @@ Minimal example:
 
 ```env
 STACK_NAME=openhands-support
-PROJECT_ROOT=$HOME/work/my-project
+WORKSPACE_ROOT=$HOME/.local/share/openhands/workspace-empty
 OH_SECRET_KEY=openhands-universal-stack-dev-secret
 OPENHANDS_PORT=3001
 OLLAMA_HOST_PORT=11435
@@ -87,6 +79,7 @@ CONTEXT7_API_KEY=
 Start the stack:
 
 ```bash
+mkdir -p "$HOME/.local/share/openhands/workspace-empty"
 docker compose up -d --build
 ```
 
@@ -120,6 +113,15 @@ Then add these MCP servers once:
 - `Memory`
   - transport: `SHTTP`
   - URL: `http://memory-mcp:8000/mcp`
+
+At this point the sandbox starts with an empty workspace. To work on a real
+repository:
+
+- open `OpenHands`
+- use `Connect Repo`
+- select the GitHub repository you want to work on
+
+By default, the stack does not mount any local project into the sandbox.
 
 After that, normal usage is:
 
@@ -166,6 +168,6 @@ rm -rf "${HOME}/.openhands"
 
 ## Runtime Notes
 
-- the target project is mounted into the sandbox at `/workspace`
+- the sandbox starts with an empty local workspace mounted at `/workspace/project`
 - `OpenHands` uses `${STACK_NAME}-runtime:latest` as its sandbox image
 - `distill` inside the sandbox talks to `Ollama` through `host.docker.internal`

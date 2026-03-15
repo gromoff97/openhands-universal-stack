@@ -210,7 +210,7 @@ services:
       OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
       OH_WEB_URL: http://host.docker.internal:${OPENHANDS_PORT}
       SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
-      SANDBOX_VOLUMES: "${PROJECT_ROOT}:/workspace/project:rw"
+      SANDBOX_VOLUMES: "${WORKSPACE_ROOT}:/workspace/project:rw"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
