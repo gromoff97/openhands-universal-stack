@@ -5,7 +5,7 @@
 ### 1. Do in your environment
 
 ```bash
-# Optional: create .env only if you want to override the built-in defaults
+# Create the required environment file with working defaults
 cp .env.example .env
 
 # Build and start the full stack
@@ -15,26 +15,18 @@ docker compose up -d --build
 docker compose --profile login run --rm --service-ports chatmock-login
 ```
 
-### 2. Do in `OpenHands`
+### 2. Do in `OpenHands` `http://localhost:3001`
 
-```text
-http://localhost:3001
-```
-
-- LLM:
-  - base URL: `http://chatmock:5000/v1`
-  - API key: any non-empty value
-  - model: `CHATMOCK_MODEL` (default `gpt-5.1-codex-max`)
-- MCP:
-  - `Context7` -> `SHTTP` -> `http://context7-mcp:3000/mcp`
-  - `Memory` -> `SHTTP` -> `http://memory-mcp:8000/mcp`
+- LLM -> base URL: `http://chatmock:5000/v1`
+- LLM -> API key: any non-empty value
+- LLM -> model: `CHATMOCK_MODEL` from `.env` (`gpt-5.1-codex-max` by default)
+- MCP -> `Context7` -> `SHTTP` -> `http://context7-mcp:3000/mcp`
+- MCP -> `Memory` -> `SHTTP` -> `http://memory-mcp:8000/mcp`
 - `Connect Repo` -> choose the GitHub repository you want to work on
-- Done! Daily use:
 
-  ```bash
-  # Start the stack again later
-  docker compose up -d --build
+Done! Daily use:
 
-  # Stop the stack
-  docker compose down
-  ```
+```bash
+docker compose up -d --build
+docker compose down
+```
