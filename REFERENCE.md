@@ -121,15 +121,18 @@ It also supports forcing the real upstream ChatGPT model through
 
 That means:
 
-- `OpenHands` can keep talking to `http://chatmock:5000/v1`
+- `OpenHands` should use `http://host.docker.internal:5000/v1`
 - the model name entered in the UI only needs to be an OpenAI-style identifier
 - the actual upstream ChatGPT model is controlled by `CHATMOCK_MODEL`
+
+`host.docker.internal` is required because the agent sandbox runs in its own
+container and cannot resolve compose service names like `chatmock`.
 
 ## UI Settings Reference
 
 Expected LLM settings in the OpenHands UI:
 
-- base URL: `http://chatmock:5000/v1`
+- base URL: `http://host.docker.internal:5000/v1`
 - API key: any non-empty value
 - model: any OpenAI-style model id; `CHATMOCK_MODEL` controls the real upstream target
 

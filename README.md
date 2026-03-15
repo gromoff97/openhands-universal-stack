@@ -17,7 +17,7 @@ docker compose run --rm -P chatmock-login
 
 ### 2. Do in `OpenHands` `http://localhost:3001`
 
-- LLM -> base URL: `http://chatmock:5000/v1`
+- LLM -> base URL: `http://host.docker.internal:5000/v1`
 - LLM -> API key: any non-empty value
 - LLM -> model: any OpenAI-style model id (`gpt-5.1-codex-max` is the default upstream target)
 - MCP -> `Context7` -> `SHTTP` -> `http://context7-mcp:3000/mcp`
