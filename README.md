@@ -19,7 +19,7 @@ docker compose run --rm -P chatmock-login
 
 - LLM -> base URL: `http://host.docker.internal:5000/v1`
 - LLM -> API key: any non-empty value
-- LLM -> model: any OpenAI-style model id (`gpt-5.1-codex-max` is the default upstream target)
+- LLM -> model: `openai/gpt-4o`
 - MCP -> `Context7` -> `SHTTP` -> `http://context7-mcp:3000/mcp`
 - MCP -> `Memory` -> `SHTTP` -> `http://memory-mcp:8000/mcp`
 - `Connect Repo` -> choose the GitHub repository you want to work on
