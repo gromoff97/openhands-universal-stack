@@ -1,8 +1,8 @@
 package adapter.service
 
-import adapter.converter.ChatCompletionToResponsesConverter
-import adapter.converter.ResponsesToChatCompletionConverter
-import adapter.http.ChatMockBackendClient
+import adapter.converter.ResponsesRequestConverter
+import adapter.converter.ResponsesResponseConverter
+import adapter.http.BackendClient
 import adapter.http.toHttp4kResponse
 import adapter.model.ChatCompletionResponse
 import adapter.model.ResponsesRequest
@@ -13,9 +13,9 @@ import org.http4k.core.Status
 
 class AdapterService(
     private val objectMapper: ObjectMapper,
-    private val backendClient: ChatMockBackendClient = ChatMockBackendClient(),
-    private val requestConverter: ResponsesToChatCompletionConverter,
-    private val responseConverter: ChatCompletionToResponsesConverter,
+    private val backendClient: BackendClient,
+    private val requestConverter: ResponsesRequestConverter,
+    private val responseConverter: ResponsesResponseConverter,
 ) {
     fun handleModels(request: Request): Response =
         backendClient.forward(request, "/v1/models").toHttp4kResponse()

@@ -5,8 +5,7 @@ import adapter.converter.ChatCompletionToResponsesConverter
 import adapter.converter.ResponsesToChatCompletionConverter
 import adapter.http.corsFilter
 import adapter.http.preflightResponse
-import adapter.json.adapterObjectMapper
-import adapter.service.AdapterService
+import adapter.service.AdapterServiceFactory
 import org.http4k.core.HttpHandler
 import org.http4k.core.Method
 import org.http4k.core.then
@@ -21,11 +20,10 @@ fun main() {
 }
 
 private fun adapterApp(): HttpHandler {
-    val objectMapper = adapterObjectMapper()
-    val service = AdapterService(
-        objectMapper = objectMapper,
-        requestConverter = ResponsesToChatCompletionConverter(objectMapper, AdapterConfig.defaultModel),
-        responseConverter = ChatCompletionToResponsesConverter(objectMapper, AdapterConfig.defaultModel),
+    val service = AdapterServiceFactory.create(
+        backendBaseUrl = AdapterConfig.backendBaseUrl,
+        requestConverter = ResponsesToChatCompletionConverter.default(AdapterConfig.defaultModel),
+        responseConverter = ChatCompletionToResponsesConverter.default(AdapterConfig.defaultModel),
     )
 
     val app = routes(

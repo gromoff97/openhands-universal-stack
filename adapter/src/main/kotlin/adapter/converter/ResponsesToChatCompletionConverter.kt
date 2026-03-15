@@ -7,6 +7,7 @@ import adapter.model.ResponsesFunctionCallOutput
 import adapter.model.ResponsesInputMessage
 import adapter.model.ResponsesRequest
 import adapter.model.ResponsesTextPart
+import adapter.json.adapterObjectMapper
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.util.UUID
@@ -14,8 +15,16 @@ import java.util.UUID
 class ResponsesToChatCompletionConverter(
     private val objectMapper: ObjectMapper,
     private val defaultModel: String,
-) {
-    fun convert(request: ResponsesRequest): ChatCompletionRequest {
+) : ResponsesRequestConverter {
+    companion object {
+        fun default(defaultModel: String): ResponsesRequestConverter =
+            ResponsesToChatCompletionConverter(
+                objectMapper = adapterObjectMapper(),
+                defaultModel = defaultModel,
+            )
+    }
+
+    override fun convert(request: ResponsesRequest): ChatCompletionRequest {
         val messages = mutableListOf<ChatMessage>()
 
         request.instructions?.trim()?.takeIf { it.isNotEmpty() }?.let {

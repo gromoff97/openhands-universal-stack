@@ -10,7 +10,7 @@ import java.time.Duration
 
 class ChatMockBackendClient(
     private val backendBaseUrl: String = AdapterConfig.backendBaseUrl,
-) {
+) : BackendClient {
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(Duration.ofSeconds(30))
         .readTimeout(Duration.ofSeconds(600))
@@ -31,7 +31,7 @@ class ChatMockBackendClient(
         "content-encoding",
     )
 
-    fun forward(request: Request, path: String): BackendHttpResponse {
+    override fun forward(request: Request, path: String): BackendHttpResponse {
         httpRequest(request, path, request.method, body = when (request.method) {
             Method.GET, Method.OPTIONS -> null
             else -> request.bodyString()
@@ -44,7 +44,7 @@ class ChatMockBackendClient(
         }
     }
 
-    fun postJson(request: Request, path: String, jsonBody: String): BackendHttpResponse {
+    override fun postJson(request: Request, path: String, jsonBody: String): BackendHttpResponse {
         httpRequest(request, path, Method.POST, jsonBody).use { response ->
             return BackendHttpResponse(
                 statusCode = response.code,
@@ -54,7 +54,7 @@ class ChatMockBackendClient(
         }
     }
 
-    fun postJsonStreaming(request: Request, path: String, jsonBody: String): StreamingBackendResponse {
+    override fun postJsonStreaming(request: Request, path: String, jsonBody: String): StreamingBackendResponse {
         val response = httpRequest(request, path, Method.POST, jsonBody)
         return StreamingBackendResponse(
             statusCode = response.code,

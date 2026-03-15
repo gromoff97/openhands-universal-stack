@@ -14,6 +14,7 @@ import adapter.model.ResponseOutputItem
 import adapter.model.ResponseOutputTextDeltaEvent
 import adapter.model.ResponseProgress
 import adapter.model.ResponseUsage
+import adapter.json.adapterObjectMapper
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import java.time.Instant
@@ -22,8 +23,16 @@ import java.util.UUID
 class ChatCompletionToResponsesConverter(
     private val objectMapper: ObjectMapper,
     private val defaultModel: String,
-) {
-    fun convert(request: ResponsesRequest, chatCompletion: ChatCompletionResponse): ResponsesApiResponse {
+) : ResponsesResponseConverter {
+    companion object {
+        fun default(defaultModel: String): ResponsesResponseConverter =
+            ChatCompletionToResponsesConverter(
+                objectMapper = adapterObjectMapper(),
+                defaultModel = defaultModel,
+            )
+    }
+
+    override fun convert(request: ResponsesRequest, chatCompletion: ChatCompletionResponse): ResponsesApiResponse {
         val model = request.model?.ifBlank { chatCompletion.model ?: defaultModel } ?: chatCompletion.model ?: defaultModel
         val createdAt = chatCompletion.created ?: Instant.now().epochSecond
         val message = chatCompletion.choices.firstOrNull()?.message
@@ -45,7 +54,7 @@ class ChatCompletionToResponsesConverter(
         )
     }
 
-    fun convertStream(request: ResponsesRequest, streaming: StreamingBackendResponse): String {
+    override fun convertStream(request: ResponsesRequest, streaming: StreamingBackendResponse): String {
         streaming.use {
             val model = request.model?.ifBlank { defaultModel } ?: defaultModel
             val responseId = "resp_${UUID.randomUUID().toString().replace("-", "")}"
