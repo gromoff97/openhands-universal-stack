@@ -51,7 +51,9 @@ services:
             && git checkout "$$CHATMOCK_COMMIT"
 
         COPY scripts/patch_chatmock_responses.py /tmp/patch_chatmock_responses.py
-        RUN python /tmp/patch_chatmock_responses.py
+        COPY scripts/patch_chatmock_upstream_retry.py /tmp/patch_chatmock_upstream_retry.py
+        RUN python /tmp/patch_chatmock_responses.py \
+            && python /tmp/patch_chatmock_upstream_retry.py
 
         RUN pip install --no-cache-dir .
 
