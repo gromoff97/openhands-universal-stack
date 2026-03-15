@@ -4,55 +4,38 @@ A minimal setup for `OpenHands`.
 
 ## Install
 
-1. Optional: copy `.env.example` to `.env` if you want to override defaults:
+### 1. Terminal Setup
 
 ```bash
+# Optional: create .env only if you want to override the built-in defaults
 cp .env.example .env
-```
 
-2. Start the stack:
-
-```bash
+# Build and start the full stack
 docker compose up -d --build
-```
 
-3. Log into `ChatMock` once:
-
-```bash
+# One-time ChatMock login
 docker compose --profile login run --rm --service-ports chatmock-login
 ```
 
-4. Open `OpenHands`:
+### 2. OpenHands Setup
 
-```text
-http://localhost:3001
-```
-
-5. Save these LLM settings once:
-
-- base URL: `http://chatmock:5000/v1`
-- API key: `chatmock`
-- model: `gpt-5.1-codex-max`
-
-6. Add these MCP servers once:
-
-- `Context7`
-  - transport: `SHTTP`
-  - URL: `http://context7-mcp:3000/mcp`
-- `Memory`
-  - transport: `SHTTP`
-  - URL: `http://memory-mcp:8000/mcp`
-
-7. Start working:
-
-- open `OpenHands`
-- use `Connect Repo`
-- select the GitHub repository you want to work on
+- Open `http://localhost:3001`
+- Save LLM settings:
+  - base URL: `http://chatmock:5000/v1`
+  - API key: `chatmock`
+  - model: `gpt-5.1-codex-max`
+- Add MCP servers:
+  - `Context7` -> `SHTTP` -> `http://context7-mcp:3000/mcp`
+  - `Memory` -> `SHTTP` -> `http://memory-mcp:8000/mcp`
+- Click `Connect Repo` and choose the GitHub repository you want to work on
 
 ## Daily Use
 
 ```bash
+# Start the stack again later
 docker compose up -d --build
+
+# Stop the stack
 docker compose down
 ```
 
