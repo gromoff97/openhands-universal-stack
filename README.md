@@ -1,7 +1,5 @@
 # OpenHands Universal Stack
 
-A minimal setup for `OpenHands`.
-
 ## Install
 
 ### 1. Terminal Setup
@@ -17,19 +15,17 @@ docker compose up -d --build
 docker compose --profile login run --rm --service-ports chatmock-login
 ```
 
-### 2. OpenHands Setup
+### 2. OpenHands Setup (http://localhost:3001)
 
-- Open `http://localhost:3001`
-- Save LLM settings:
+- LLM:
   - base URL: `http://chatmock:5000/v1`
-  - API key: `chatmock`
-  - model: `gpt-5.1-codex-max`
-- Add MCP servers:
+  - API key: any non-empty value, for example `chatmock`
+  - model: `CHATMOCK_MODEL` (default `gpt-5.1-codex-max`)
+- MCP:
   - `Context7` -> `SHTTP` -> `http://context7-mcp:3000/mcp`
   - `Memory` -> `SHTTP` -> `http://memory-mcp:8000/mcp`
-- Click `Connect Repo` and choose the GitHub repository you want to work on
-
-## Daily Use
+- `Connect Repo` -> choose the GitHub repository you want to work on
+- Daily use:
 
 ```bash
 # Start the stack again later
@@ -38,5 +34,3 @@ docker compose up -d --build
 # Stop the stack
 docker compose down
 ```
-
-For overrides, persistence, and other details, see [REFERENCE.md](REFERENCE.md).
