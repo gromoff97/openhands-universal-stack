@@ -44,7 +44,6 @@ cp .env.example .env
 Required variables:
 
 - `STACK_NAME`
-- `WORKSPACE_ROOT`
 - `OH_SECRET_KEY`
 - `OPENHANDS_PORT`
 - `OLLAMA_HOST_PORT`
@@ -62,7 +61,6 @@ Minimal example:
 
 ```env
 STACK_NAME=openhands-support
-WORKSPACE_ROOT=$HOME/.local/share/openhands/workspace-empty
 OH_SECRET_KEY=openhands-universal-stack-dev-secret
 OPENHANDS_PORT=3001
 OLLAMA_HOST_PORT=11435
@@ -79,7 +77,6 @@ CONTEXT7_API_KEY=
 Start the stack:
 
 ```bash
-mkdir -p "$HOME/.local/share/openhands/workspace-empty"
 docker compose up -d --build
 ```
 
@@ -121,7 +118,8 @@ repository:
 - use `Connect Repo`
 - select the GitHub repository you want to work on
 
-By default, the stack does not mount any local project into the sandbox.
+By default, the stack does not mount any local project into the sandbox and
+uses the standard ephemeral sandbox workspace.
 
 After that, normal usage is:
 
@@ -168,6 +166,6 @@ rm -rf "${HOME}/.openhands"
 
 ## Runtime Notes
 
-- the sandbox starts with an empty local workspace mounted at `/workspace/project`
+- the sandbox uses the standard internal ephemeral workspace until you connect a repo
 - `OpenHands` uses `${STACK_NAME}-runtime:latest` as its sandbox image
 - `distill` inside the sandbox talks to `Ollama` through `host.docker.internal`

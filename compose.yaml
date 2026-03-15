@@ -18,9 +18,6 @@ services:
 
         USER openhands
 
-        RUN git config --global --add safe.directory /workspace/project \
-            && git config --global --add safe.directory '/workspace/project/*'
-
         RUN HOME=/home/openhands distill config host "$$DISTILL_HOST" \
             && HOME=/home/openhands distill config model "$$DISTILL_MODEL" \
             && HOME=/home/openhands distill config thinking false \
@@ -210,7 +207,6 @@ services:
       OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
       OH_WEB_URL: http://host.docker.internal:${OPENHANDS_PORT}
       SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
-      SANDBOX_VOLUMES: "${WORKSPACE_ROOT}:/workspace/project:rw"
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
