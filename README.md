@@ -1,62 +1,40 @@
 # OpenHands Universal Stack
 
-A run-and-go Docker Compose stack for `OpenHands`.
-
-For architecture, persistence, and other details, see [REFERENCE.md](REFERENCE.md).
-
-## Requirements
-
-- Linux or WSL2
-- Docker with `docker compose`
-- Docker `buildx`
-- a GitHub repository you plan to connect from the UI
+A minimal setup for `OpenHands`.
 
 ## Install
 
-1. Copy `.env.example` to `.env`:
+1. Optional: copy `.env.example` to `.env` if you want to override defaults:
 
 ```bash
 cp .env.example .env
 ```
 
-2. Set these values in `.env`:
-
-- `STACK_NAME`
-- `OH_SECRET_KEY`
-- `OPENHANDS_PORT`
-- `OLLAMA_HOST_PORT`
-- `CHATMOCK_MODEL`
-- `CHATMOCK_REASONING_EFFORT`
-- `CHATMOCK_REASONING_SUMMARY`
-- `DISTILL_OLLAMA_MODEL`
-- `DISTILL_TIMEOUT_MS`
-- `CONTEXT7_API_KEY`
-
-3. Start the stack:
+2. Start the stack:
 
 ```bash
 docker compose up -d --build
 ```
 
-4. Log into `ChatMock` once:
+3. Log into `ChatMock` once:
 
 ```bash
 docker compose --profile login run --rm --service-ports chatmock-login
 ```
 
-5. Open `OpenHands`:
+4. Open `OpenHands`:
 
 ```text
-http://localhost:<OPENHANDS_PORT>
+http://localhost:3001
 ```
 
-6. Save these LLM settings once:
+5. Save these LLM settings once:
 
 - base URL: `http://chatmock:5000/v1`
 - API key: `chatmock`
-- model: use `CHATMOCK_MODEL`
+- model: `gpt-5.1-codex-max`
 
-7. Add these MCP servers once:
+6. Add these MCP servers once:
 
 - `Context7`
   - transport: `SHTTP`
@@ -65,7 +43,7 @@ http://localhost:<OPENHANDS_PORT>
   - transport: `SHTTP`
   - URL: `http://memory-mcp:8000/mcp`
 
-8. Start working:
+7. Start working:
 
 - open `OpenHands`
 - use `Connect Repo`
@@ -77,3 +55,5 @@ http://localhost:<OPENHANDS_PORT>
 docker compose up -d --build
 docker compose down
 ```
+
+For overrides, persistence, and other details, see [REFERENCE.md](REFERENCE.md).

@@ -1,4 +1,4 @@
-name: ${STACK_NAME}
+name: ${STACK_NAME:-openhands-support}
 
 services:
   # Build job: produces the custom OpenHands sandbox image with distill installed.
@@ -23,10 +23,10 @@ services:
             && HOME=/home/openhands distill config thinking false \
             && HOME=/home/openhands distill config timeout-ms "$$DISTILL_TIMEOUT_MS"
       args:
-        DISTILL_HOST: "http://host.docker.internal:${OLLAMA_HOST_PORT}"
-        DISTILL_MODEL: "${DISTILL_OLLAMA_MODEL}"
-        DISTILL_TIMEOUT_MS: "${DISTILL_TIMEOUT_MS}"
-    image: ${STACK_NAME}-runtime:latest
+        DISTILL_HOST: "http://host.docker.internal:${OLLAMA_HOST_PORT:-11435}"
+        DISTILL_MODEL: "${DISTILL_OLLAMA_MODEL:-qwen3.5:2b}"
+        DISTILL_TIMEOUT_MS: "${DISTILL_TIMEOUT_MS:-90000}"
+    image: ${STACK_NAME:-openhands-support}-runtime:latest
     entrypoint: ["true"]
 
   # Long-lived services.
@@ -58,7 +58,7 @@ services:
         VOLUME ["/config"]
 
         ENTRYPOINT ["chatmock"]
-    image: ${STACK_NAME}-chatmock:latest
+    image: ${STACK_NAME:-openhands-support}-chatmock:latest
     command:
       [
         "serve",
@@ -95,7 +95,7 @@ services:
   ollama:
     image: ollama/ollama:latest
     ports:
-      - "${OLLAMA_HOST_PORT}:11434"
+      - "${OLLAMA_HOST_PORT:-11435}:11434"
     volumes:
       - ollama-data:/root/.ollama
     healthcheck:
@@ -142,7 +142,7 @@ services:
 
         ENTRYPOINT ["context7-mcp"]
         CMD ["--transport", "http", "--port", "3000"]
-    image: ${STACK_NAME}-context7-mcp:latest
+    image: ${STACK_NAME:-openhands-support}-context7-mcp:latest
     environment:
       CONTEXT7_API_KEY: ${CONTEXT7_API_KEY:-}
     healthcheck:
@@ -161,7 +161,7 @@ services:
 
   # One-shot jobs.
   chatmock-login:
-    image: ${STACK_NAME}-chatmock:latest
+    image: ${STACK_NAME:-openhands-support}-chatmock:latest
     profiles:
       - login
     volumes:
@@ -179,7 +179,7 @@ services:
         condition: service_healthy
     environment:
       OLLAMA_HOST: http://ollama:11434
-    command: ["pull", "${DISTILL_OLLAMA_MODEL}"]
+    command: ["pull", "${DISTILL_OLLAMA_MODEL:-qwen3.5:2b}"]
 
   openhands:
     image: docker.openhands.dev/openhands/openhands:latest
@@ -195,16 +195,16 @@ services:
       memory-mcp:
         condition: service_healthy
     ports:
-      - "${OPENHANDS_PORT}:3000"
+      - "${OPENHANDS_PORT:-3001}:3000"
     environment:
-      AGENT_SERVER_IMAGE_REPOSITORY: ${STACK_NAME}-runtime
+      AGENT_SERVER_IMAGE_REPOSITORY: ${STACK_NAME:-openhands-support}-runtime
       AGENT_SERVER_IMAGE_TAG: latest
       OH_SECRET_KEY: ${OH_SECRET_KEY:-openhands-universal-stack-dev-secret}
       OH_AGENT_SERVER_ENV: >-
-        {"OH_ALLOW_CORS_ORIGINS_1":"http://localhost:${OPENHANDS_PORT}","OH_ALLOW_CORS_ORIGINS_2":"http://127.0.0.1:${OPENHANDS_PORT}"}
-      OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
-      OH_WEB_URL: http://host.docker.internal:${OPENHANDS_PORT}
-      SANDBOX_HOST_PORT: ${OPENHANDS_PORT}
+        {"OH_ALLOW_CORS_ORIGINS_1":"http://localhost:${OPENHANDS_PORT:-3001}","OH_ALLOW_CORS_ORIGINS_2":"http://127.0.0.1:${OPENHANDS_PORT:-3001}"}
+      OH_SANDBOX_HOST_PORT: ${OPENHANDS_PORT:-3001}
+      OH_WEB_URL: http://host.docker.internal:${OPENHANDS_PORT:-3001}
+      SANDBOX_HOST_PORT: ${OPENHANDS_PORT:-3001}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
