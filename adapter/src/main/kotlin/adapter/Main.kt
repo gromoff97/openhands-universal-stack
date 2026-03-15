@@ -1,8 +1,9 @@
 package adapter
 
 import adapter.config.AdapterConfig
-import adapter.converter.ChatCompletionToResponsesConverter
-import adapter.converter.ResponsesToChatCompletionConverter
+import adapter.converter.ChatCompletionResponseToResponsesApiResponseConverter
+import adapter.converter.ResponsesRequestToChatCompletionRequestConverter
+import adapter.converter.StreamingChatCompletionToResponsesSseConverter
 import adapter.http.corsFilter
 import adapter.http.preflightResponse
 import adapter.service.AdapterServiceFactory
@@ -22,8 +23,9 @@ fun main() {
 private fun adapterApp(): HttpHandler {
     val service = AdapterServiceFactory.create(
         backendBaseUrl = AdapterConfig.backendBaseUrl,
-        requestConverter = ResponsesToChatCompletionConverter.default(AdapterConfig.defaultModel),
-        responseConverter = ChatCompletionToResponsesConverter.default(AdapterConfig.defaultModel),
+        requestConverter = ResponsesRequestToChatCompletionRequestConverter(AdapterConfig.defaultModel),
+        responseConverter = ChatCompletionResponseToResponsesApiResponseConverter(AdapterConfig.defaultModel),
+        streamingResponseConverter = StreamingChatCompletionToResponsesSseConverter(AdapterConfig.defaultModel),
     )
 
     val app = routes(

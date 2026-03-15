@@ -1,5 +1,6 @@
 package adapter.converter
 
+import adapter.json.adapterObjectMapper
 import adapter.model.ChatCompletionRequest
 import adapter.model.ChatMessage
 import adapter.model.LegacyMessage
@@ -7,36 +8,25 @@ import adapter.model.ResponsesFunctionCallOutput
 import adapter.model.ResponsesInputMessage
 import adapter.model.ResponsesRequest
 import adapter.model.ResponsesTextPart
-import adapter.json.adapterObjectMapper
 import com.fasterxml.jackson.databind.JsonNode
-import com.fasterxml.jackson.databind.ObjectMapper
 import java.util.UUID
 
-class ResponsesToChatCompletionConverter(
-    private val objectMapper: ObjectMapper,
+class ResponsesRequestToChatCompletionRequestConverter(
     private val defaultModel: String,
-) : ResponsesRequestConverter {
-    companion object {
-        fun default(defaultModel: String): ResponsesRequestConverter =
-            ResponsesToChatCompletionConverter(
-                objectMapper = adapterObjectMapper(),
-                defaultModel = defaultModel,
-            )
-    }
-
-    override fun convert(request: ResponsesRequest): ChatCompletionRequest {
+) : Converter<ResponsesRequest, ChatCompletionRequest> {
+    override fun adapt(original: ResponsesRequest): ChatCompletionRequest {
         val messages = mutableListOf<ChatMessage>()
 
-        request.instructions?.trim()?.takeIf { it.isNotEmpty() }?.let {
+        original.instructions?.trim()?.takeIf { it.isNotEmpty() }?.let {
             messages += ChatMessage(role = "system", content = it)
         }
 
         messages += when {
-            request.input == null && !request.messages.isNullOrEmpty() -> mapLegacyMessages(request.messages)
-            request.input == null && !request.prompt.isNullOrBlank() -> listOf(ChatMessage(role = "user", content = request.prompt))
-            request.input == null -> emptyList()
-            request.input.isTextual -> listOf(ChatMessage(role = "user", content = request.input.asText()))
-            request.input.isArray -> mapResponsesInput(request.input)
+            original.input == null && !original.messages.isNullOrEmpty() -> mapLegacyMessages(original.messages)
+            original.input == null && !original.prompt.isNullOrBlank() -> listOf(ChatMessage(role = "user", content = original.prompt))
+            original.input == null -> emptyList()
+            original.input.isTextual -> listOf(ChatMessage(role = "user", content = original.input.asText()))
+            original.input.isArray -> mapResponsesInput(original.input)
             else -> emptyList()
         }
 
@@ -45,13 +35,13 @@ class ResponsesToChatCompletionConverter(
         }
 
         return ChatCompletionRequest(
-            model = request.model?.ifBlank { defaultModel } ?: defaultModel,
+            model = original.model?.ifBlank { defaultModel } ?: defaultModel,
             messages = messages,
-            stream = request.stream ?: false,
-            tools = request.tools ?: request.responsesTools,
-            toolChoice = request.toolChoice ?: request.responsesToolChoice,
-            parallelToolCalls = request.parallelToolCalls,
-            streamOptions = request.streamOptions,
+            stream = original.stream ?: false,
+            tools = original.tools ?: original.responsesTools,
+            toolChoice = original.toolChoice ?: original.responsesToolChoice,
+            parallelToolCalls = original.parallelToolCalls,
+            streamOptions = original.streamOptions,
         )
     }
 
@@ -65,10 +55,9 @@ class ResponsesToChatCompletionConverter(
     private fun mapResponsesInput(input: JsonNode): List<ChatMessage> {
         val messages = mutableListOf<ChatMessage>()
         input.forEach { node ->
-            val type = node.path("type").asText()
-            when (type) {
+            when (node.path("type").asText()) {
                 "message" -> {
-                    val item = objectMapper.treeToValue(node, ResponsesInputMessage::class.java)
+                    val item = adapterObjectMapper.treeToValue(node, ResponsesInputMessage::class.java)
                     val content = extractText(item.content)
                     if (content.isNotBlank()) {
                         messages += ChatMessage(
@@ -79,7 +68,7 @@ class ResponsesToChatCompletionConverter(
                 }
 
                 "function_call_output" -> {
-                    val item = objectMapper.treeToValue(node, ResponsesFunctionCallOutput::class.java)
+                    val item = adapterObjectMapper.treeToValue(node, ResponsesFunctionCallOutput::class.java)
                     messages += ChatMessage(
                         role = "tool",
                         content = normalizeOutput(item.output),
@@ -95,7 +84,7 @@ class ResponsesToChatCompletionConverter(
         when {
             output == null || output.isNull -> ""
             output.isTextual -> output.asText()
-            else -> objectMapper.writeValueAsString(output)
+            else -> adapterObjectMapper.writeValueAsString(output)
         }
 
     private fun extractText(content: JsonNode?): String {
@@ -104,7 +93,7 @@ class ResponsesToChatCompletionConverter(
         if (!content.isArray) return ""
 
         return content.mapNotNull { part ->
-            val typedPart = objectMapper.treeToValue(part, ResponsesTextPart::class.java)
+            val typedPart = adapterObjectMapper.treeToValue(part, ResponsesTextPart::class.java)
             when (typedPart.type) {
                 "input_text", "output_text", "text" -> typedPart.text
                 "refusal" -> typedPart.refusal
