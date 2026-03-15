@@ -2,36 +2,31 @@ package adapter.service
 
 import adapter.converter.Converter
 import adapter.http.BackendClient
+import adapter.http.StreamingBackendResponse
 import adapter.http.toHttp4kResponse
-import adapter.model.ChatCompletionResponse
-import adapter.model.ChatCompletionRequest
-import adapter.model.ChatCompletionResponseAdaptation
-import adapter.model.ResponsesRequest
-import adapter.model.ResponsesApiResponse
-import adapter.model.StreamingChatCompletionAdaptation
 import adapter.json.adapterObjectMapper
+import adapter.model.StreamAwareRequest
 import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
 
 class AdapterService(
     private val backendClient: BackendClient,
-    private val requestConverter: Converter<ResponsesRequest, ChatCompletionRequest>,
-    private val responseConverter: Converter<ChatCompletionResponseAdaptation, ResponsesApiResponse>,
-    private val streamingResponseConverter: Converter<StreamingChatCompletionAdaptation, String>,
 ) {
-    fun handleModels(request: Request): Response =
-        backendClient.forward(request, "/v1/models").toHttp4kResponse()
+    fun handlePassThrough(request: Request, backendPath: String): Response =
+        backendClient.forward(request, backendPath).toHttp4kResponse()
 
-    fun handleChatCompletions(request: Request): Response =
-        backendClient.forward(request, "/v1/chat/completions").toHttp4kResponse()
-
-    fun handleCompletions(request: Request): Response =
-        backendClient.forward(request, "/v1/completions").toHttp4kResponse()
-
-    fun handleResponses(request: Request): Response {
+    fun <OriginalRequest : Any, AdaptedRequest : StreamAwareRequest, BackendResponse : Any, AdaptedResponse : Any> handleAdaptedPost(
+        request: Request,
+        requestType: Class<OriginalRequest>,
+        requestConverter: Converter<OriginalRequest, AdaptedRequest>,
+        backendPath: String,
+        backendResponseType: Class<BackendResponse>,
+        responseConverter: Converter<BackendResponse, AdaptedResponse>,
+        streamingResponseConverter: Converter<StreamingBackendResponse, String>,
+    ): Response {
         val payload = try {
-            adapterObjectMapper.readValue(request.bodyString(), ResponsesRequest::class.java)
+            adapterObjectMapper.readValue(request.bodyString(), requestType)
         } catch (_: Exception) {
             return jsonError(Status.BAD_REQUEST, "Invalid JSON body")
         }
@@ -45,7 +40,7 @@ class AdapterService(
         if (chatRequest.stream) {
             val upstream = backendClient.postJsonStreaming(
                 request = request,
-                path = "/v1/chat/completions",
+                path = backendPath,
                 jsonBody = adapterObjectMapper.writeValueAsString(chatRequest),
             )
 
@@ -64,19 +59,12 @@ class AdapterService(
                 .header("Content-Type", "text/event-stream")
                 .header("Cache-Control", "no-cache")
                 .header("Connection", "keep-alive")
-                .body(
-                    streamingResponseConverter.adapt(
-                        StreamingChatCompletionAdaptation(
-                            request = payload,
-                            streaming = upstream,
-                        ),
-                    ),
-                )
+                .body(streamingResponseConverter.adapt(upstream))
         }
 
         val upstream = backendClient.postJson(
             request = request,
-            path = "/v1/chat/completions",
+            path = backendPath,
             jsonBody = adapterObjectMapper.writeValueAsString(chatRequest),
         )
 
@@ -85,23 +73,14 @@ class AdapterService(
         }
 
         val chatCompletion = try {
-            adapterObjectMapper.readValue(upstream.bodyBytes, ChatCompletionResponse::class.java)
+            adapterObjectMapper.readValue(upstream.bodyBytes, backendResponseType)
         } catch (_: Exception) {
             return jsonError(Status.BAD_GATEWAY, "Upstream returned invalid JSON")
         }
 
         return Response(Status.OK)
             .header("Content-Type", "application/json")
-            .body(
-                adapterObjectMapper.writeValueAsString(
-                    responseConverter.adapt(
-                        ChatCompletionResponseAdaptation(
-                            request = payload,
-                            chatCompletion = chatCompletion,
-                        ),
-                    ),
-                ),
-            )
+            .body(adapterObjectMapper.writeValueAsString(responseConverter.adapt(chatCompletion)))
     }
 
     private fun jsonError(status: Status, message: String): Response =

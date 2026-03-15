@@ -1,7 +1,10 @@
 package adapter.config
 
-object AdapterConfig {
-    const val backendBaseUrl: String = "http://chatmock:8000"
-    const val defaultModel: String = "openai/gpt-5.1-codex-max"
-    const val listenPort: Int = 5000
-}
+private fun requiredEnv(name: String): String =
+    System.getenv(name)?.takeIf { it.isNotBlank() }
+        ?: error("Missing required environment variable: $name")
+
+val adapterBackendBaseUrl: String = requiredEnv("ADAPTER_BACKEND_BASE_URL")
+val adapterDefaultModel: String = requiredEnv("ADAPTER_DEFAULT_MODEL")
+val adapterListenPort: Int = requiredEnv("ADAPTER_LISTEN_PORT").toIntOrNull()
+    ?: error("ADAPTER_LISTEN_PORT must be an integer")

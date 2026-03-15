@@ -1,6 +1,5 @@
 package adapter.http
 
-import adapter.config.AdapterConfig
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -9,7 +8,7 @@ import org.http4k.core.Request
 import java.time.Duration
 
 class ChatMockBackendClient(
-    private val backendBaseUrl: String = AdapterConfig.backendBaseUrl,
+    private val backendBaseUrl: String,
 ) : BackendClient {
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(Duration.ofSeconds(30))

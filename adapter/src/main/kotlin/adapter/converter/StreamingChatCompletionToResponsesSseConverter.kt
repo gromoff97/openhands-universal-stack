@@ -2,8 +2,6 @@ package adapter.converter
 
 import adapter.json.adapterObjectMapper
 import adapter.model.ChatCompletionChunk
-import adapter.model.ChatToolCall
-import adapter.model.ChatFunction
 import adapter.model.ResponseCompletedEvent
 import adapter.model.ResponseCreatedEvent
 import adapter.model.ResponseOutputItem
@@ -12,16 +10,17 @@ import adapter.model.ResponseProgress
 import adapter.model.ResponsesApiResponse
 import adapter.model.ResponseContentItem
 import adapter.model.ResponseUsage
-import adapter.model.StreamingChatCompletionAdaptation
+import adapter.http.StreamingBackendResponse
 import java.time.Instant
 import java.util.UUID
 
 class StreamingChatCompletionToResponsesSseConverter(
     private val defaultModel: String,
-) : Converter<StreamingChatCompletionAdaptation, String> {
-    override fun adapt(original: StreamingChatCompletionAdaptation): String {
-        original.streaming.use {
-            val model = original.request.model?.ifBlank { defaultModel } ?: defaultModel
+) : Converter<StreamingBackendResponse, String> {
+    override fun adapt(original: StreamingBackendResponse): String {
+        val streaming = original
+        streaming.use {
+            val model = defaultModel
             val responseId = "resp_${UUID.randomUUID().toString().replace("-", "")}"
             val createdAt = Instant.now().epochSecond
             val fullText = StringBuilder()
@@ -42,7 +41,7 @@ class StreamingChatCompletionToResponsesSseConverter(
                 ),
             )
 
-            original.streaming.upstream.body?.charStream()?.buffered()?.useLines { lines ->
+            streaming.upstream.body?.charStream()?.buffered()?.useLines { lines ->
                 lines.forEach { line ->
                     if (!line.startsWith("data: ")) return@forEach
                     val payload = line.removePrefix("data: ").trim()

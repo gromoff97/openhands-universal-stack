@@ -1,8 +1,8 @@
 package adapter.converter
 
 import adapter.model.ChatCompletionMessage
+import adapter.model.ChatCompletionResponse
 import adapter.model.ChatToolCall
-import adapter.model.ChatCompletionResponseAdaptation
 import adapter.model.ResponsesApiResponse
 import adapter.model.ResponseContentItem
 import adapter.model.ResponseOutputItem
@@ -13,11 +13,10 @@ import java.util.UUID
 
 class ChatCompletionResponseToResponsesApiResponseConverter(
     private val defaultModel: String,
-) : Converter<ChatCompletionResponseAdaptation, ResponsesApiResponse> {
-    override fun adapt(original: ChatCompletionResponseAdaptation): ResponsesApiResponse {
-        val request = original.request
-        val chatCompletion = original.chatCompletion
-        val model = request.model?.ifBlank { chatCompletion.model ?: defaultModel } ?: chatCompletion.model ?: defaultModel
+) : Converter<ChatCompletionResponse, ResponsesApiResponse> {
+    override fun adapt(original: ChatCompletionResponse): ResponsesApiResponse {
+        val chatCompletion = original
+        val model = chatCompletion.model?.ifBlank { defaultModel } ?: defaultModel
         val createdAt = chatCompletion.created ?: Instant.now().epochSecond
         val message = chatCompletion.choices.firstOrNull()?.message
         val outputText = extractText(message)

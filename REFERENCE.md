@@ -128,14 +128,16 @@ This stack therefore splits the chat layer into two long-lived services:
   - proxies the stock routes to `chatmock`
   - adds a compatibility `/v1/responses` endpoint for `OpenHands`
   - is implemented as a small stateless Kotlin `http4k` service
-  - keeps no state, mounts no volumes, reads no `.env`, and has no own config
-  - is fixed to the backend role `http://chatmock:8000`
+  - keeps no state and mounts no volumes
+  - gets its backend URL, default model, and listen port from compose-wired env
+  - has no defaults for those values in code and fails fast if they are missing
+  - is fixed by compose to the backend role `http://chatmock:8000`
   - is responsible only for protocol translation between `OpenHands` and `ChatMock`
 
 It also supports forcing the real upstream ChatGPT model through
 `CHATMOCK_MODEL` while keeping the `OpenHands`-side base URL unchanged. The
-adapter itself does not read that setting; it just translates and forwards
-requests to `chatmock`.
+adapter reads only its own compose-wired runtime values and otherwise just
+translates and forwards requests to `chatmock`.
 
 That means:
 
