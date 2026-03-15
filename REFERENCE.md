@@ -116,25 +116,22 @@ This stack uses `go-chatmock` because it already provides:
 - `/v1/completions`
 - `/v1/responses`
 
+This stack uses the original Python `ChatMock` server plus a small local
+compatibility layer for the `/v1/responses` route that `OpenHands` uses for
+`gpt-5*` models.
+
 It also supports forcing the real upstream ChatGPT model through
 `CHATMOCK_MODEL` while keeping the `OpenHands`-side base URL unchanged.
 
 That means:
 
 - `OpenHands` should use `http://host.docker.internal:5000/v1`
-- the model name entered in the UI should be a non-`gpt-5*` OpenAI-style alias,
-  for example `openai/gpt-4o`
+- the model name entered in the UI can be the real OpenAI-style model id, for
+  example `openai/gpt-5.1-codex-max`
 - the actual upstream ChatGPT model is controlled by `CHATMOCK_MODEL`
 
 `host.docker.internal` is required because the agent sandbox runs in its own
 container and cannot resolve compose service names like `chatmock`.
-
-`gpt-5*` model ids should not be entered in the OpenHands UI for this stack.
-OpenHands automatically switches those models to the Responses API path, while
-`go-chatmock` forwards that request body upstream with minimal rewriting. That
-causes unsupported fields like `temperature` to leak through to Codex models.
-Using a non-`gpt-5*` alias keeps OpenHands on the Chat Completions path, while
-`CHATMOCK_MODEL` still controls the real upstream target.
 
 ## UI Settings Reference
 
@@ -142,7 +139,7 @@ Expected LLM settings in the OpenHands UI:
 
 - base URL: `http://host.docker.internal:5000/v1`
 - API key: any non-empty value
-- model: `openai/gpt-4o`; `CHATMOCK_MODEL` controls the real upstream target
+- model: `openai/gpt-5.1-codex-max`; `CHATMOCK_MODEL` controls the real upstream target
 
 Expected MCP settings:
 
