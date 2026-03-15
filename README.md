@@ -11,8 +11,8 @@ cp .env.example .env
 # Build and start the full stack
 docker compose up -d --build
 
-# One-time ChatMock login
-docker compose --profile login run --rm --service-ports chatmock-login
+# One-time login
+docker compose run --rm -P chatmock-login
 ```
 
 ### 2. Do in `OpenHands` `http://localhost:3001`

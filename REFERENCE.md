@@ -87,7 +87,7 @@ This means:
 
 `docker compose down -v` removes Docker named volumes for:
 
-- `ChatMock`
+- `chatmock`
 - `Ollama`
 - `Memory MCP`
 
